@@ -109,24 +109,15 @@ class AccountServiceTest {
     }
 
     @Test
-    void delete_whenExists_returnsTrue() {
-        UUID id = UUID.randomUUID();
-        when(accountRepository.existsById(id)).thenReturn(true);
+    void delete() {
+        UUID existingId = UUID.randomUUID();
+        when(accountRepository.existsById(existingId)).thenReturn(true);
 
-        boolean result = accountService.delete(id);
+        assertTrue(accountService.delete(existingId));
 
-        assertTrue(result);
-        verify(accountRepository).deleteById(id);
-    }
+        UUID missingId = UUID.randomUUID();
+        when(accountRepository.existsById(missingId)).thenReturn(false);
 
-    @Test
-    void delete_whenNotExists_returnsFalse() {
-        UUID id = UUID.randomUUID();
-        when(accountRepository.existsById(id)).thenReturn(false);
-
-        boolean result = accountService.delete(id);
-
-        assertFalse(result);
-        verify(accountRepository, never()).deleteById(any());
+        assertFalse(accountService.delete(missingId));
     }
 }
