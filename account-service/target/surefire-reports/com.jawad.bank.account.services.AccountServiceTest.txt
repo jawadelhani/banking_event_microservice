@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.jawad.bank.account.services.AccountServiceTest
--------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.798 s -- in com.jawad.bank.account.services.AccountServiceTest
