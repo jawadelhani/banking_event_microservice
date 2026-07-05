@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        SERVICES = "account-service agency-service notification-service transaction-simulator-service"
+    }
+
     stages {
 
         stage('Checkout') {
@@ -9,17 +13,11 @@ pipeline {
             }
         }
 
-        stage('Compile Services') {
+        stage('Compile') {
             steps {
                 script {
-                    def services = [
-                        'account-service',
-                        'agency-service',
-                        'notification-service',
-                        'transaction-simulator-service'
-                    ]
-
-                    for (service in services) {
+                    for (service in env.SERVICES.split()) {
+                        echo "Compiling ${service}"
                         dir(service) {
                             sh 'mvn clean compile'
                         }
@@ -28,20 +26,38 @@ pipeline {
             }
         }
 
-        stage('Run Unit Tests') {
+        stage('Unit Tests') {
             steps {
                 script {
-                    def services = [
-                        'account-service',
-                        'agency-service',
-                        'notification-service',
-                        'transaction-simulator-service'
-                    ]
-
-                    for (service in services) {
+                    for (service in env.SERVICES.split()) {
+                        echo "Testing ${service}"
                         dir(service) {
                             sh 'mvn test'
                         }
+                    }
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                script {
+                    for (service in env.SERVICES.split()) {
+                        echo "Packaging ${service}"
+                        dir(service) {
+                            sh 'mvn package -DskipTests'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    for (service in env.SERVICES.split()) {
+                        echo "Building Docker image for ${service}"
+                        sh "docker build -t ${service}:latest ./${service}"
                     }
                 }
             }
@@ -50,11 +66,15 @@ pipeline {
 
     post {
         success {
-            echo 'Compilation and tests succeeded!'
+            echo '========================================='
+            echo 'CI Pipeline completed successfully!'
+            echo '========================================='
         }
 
         failure {
-            echo 'Pipeline failed.'
+            echo '========================================='
+            echo 'CI Pipeline failed!'
+            echo '========================================='
         }
     }
 }
