@@ -3,6 +3,7 @@ package com.jawad.bank.notification.services;
 import com.jawad.bank.notification.dtos.CreateNotificationRequest;
 import com.jawad.bank.notification.dtos.NotificationDto;
 import com.jawad.bank.notification.dtos.UpdateNotificationRequest;
+import com.jawad.bank.notification.entities.Notification;
 import com.jawad.bank.notification.mappers.NotificationMapper;
 import com.jawad.bank.notification.repositories.NotificationRepository;
 import lombok.AllArgsConstructor;
@@ -51,7 +52,7 @@ public class NotificationService {
      */
     @Transactional
     public NotificationDto create(CreateNotificationRequest request) {
-        var notification = notificationMapper.toEntity(request);
+        Notification notification = notificationMapper.toEntity(request);
         return notificationMapper.toDto(notificationRepository.save(notification));
     }
 

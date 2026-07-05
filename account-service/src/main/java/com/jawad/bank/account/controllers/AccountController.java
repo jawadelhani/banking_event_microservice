@@ -55,7 +55,7 @@ public class AccountController {
         if (accountOptional.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("clientId", "Client not found"));
         }
-        var accountDto = accountOptional.get();
+        AccountDto accountDto = accountOptional.get();
         var uri = uriBuilder.path("/accounts/{id}").buildAndExpand(accountDto.getId()).toUri();
         return ResponseEntity.created(uri).body(accountDto);
     }

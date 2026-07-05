@@ -45,7 +45,7 @@ public class NotificationController {
     public ResponseEntity<NotificationDto> createNotification(
             @Valid @RequestBody CreateNotificationRequest request,
             UriComponentsBuilder uriBuilder) {
-        var dto = notificationService.create(request);
+        NotificationDto dto = notificationService.create(request);
         var uri = uriBuilder.path("/notifications/{id}").buildAndExpand(dto.getId()).toUri();
         return ResponseEntity.created(uri).body(dto);
     }

@@ -49,7 +49,7 @@ public class TransactionService {
 
     @Transactional
     public TransactionDto create(CreateTransactionRequest request) {
-        var transaction = transactionMapper.toEntity(request);
+        Transaction transaction = transactionMapper.toEntity(request);
         transaction.setAmount(signedAmount(request.getAmount(), request.getType()));
         return transactionMapper.toDto(transactionRepository.save(transaction));
     }
@@ -63,15 +63,15 @@ public class TransactionService {
      */
     @Transactional
     public List<TransactionDto> simulate(SimulateTransactionsRequest request) {
-        var accountIds = request.getAccountIds();
-        var generated = new ArrayList<Transaction>();
+        List<UUID> accountIds = request.getAccountIds();
+        ArrayList<Transaction> generated = new ArrayList<Transaction>();
 
         for (int i = 0; i < request.getCount(); i++) {
-            var accountId = accountIds.get(random.nextInt(accountIds.size()));
-            var type = random.nextBoolean() ? TransactionType.DEBIT : TransactionType.CREDIT;
-            var amount = randomAmount();
+            UUID accountId = accountIds.get(random.nextInt(accountIds.size()));
+            TransactionType type = random.nextBoolean() ? TransactionType.DEBIT : TransactionType.CREDIT;
+            BigDecimal amount = randomAmount();
 
-            var transaction = Transaction.builder()
+            Transaction transaction = Transaction.builder()
                     .accountId(accountId)
                     .type(type)
                     .amount(signedAmount(amount, type))
@@ -93,10 +93,10 @@ public class TransactionService {
     }
 
     private BigDecimal randomAmount() {
-        var min = simulatorProperties.getMinAmount();
-        var max = simulatorProperties.getMaxAmount();
-        var range = max.subtract(min);
-        var randomValue = BigDecimal.valueOf(random.nextDouble()).multiply(range).add(min);
+        BigDecimal min = simulatorProperties.getMinAmount();
+        BigDecimal max = simulatorProperties.getMaxAmount();
+        BigDecimal range = max.subtract(min);
+        BigDecimal randomValue = BigDecimal.valueOf(random.nextDouble()).multiply(range).add(min);
         return randomValue.setScale(2, RoundingMode.HALF_UP);
     }
 

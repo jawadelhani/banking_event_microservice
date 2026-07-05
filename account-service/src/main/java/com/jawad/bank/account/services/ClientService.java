@@ -3,6 +3,7 @@ package com.jawad.bank.account.services;
 import com.jawad.bank.account.dtos.ClientDto;
 import com.jawad.bank.account.dtos.CreateClientRequest;
 import com.jawad.bank.account.dtos.UpdateClientRequest;
+import com.jawad.bank.account.entities.Client;
 import com.jawad.bank.account.mappers.ClientMapper;
 import com.jawad.bank.account.repositories.ClientRepository;
 import lombok.AllArgsConstructor;
@@ -44,7 +45,7 @@ public class ClientService {
 
     @Transactional
     public ClientDto create(CreateClientRequest request) {
-        var client = clientMapper.toEntity(request);
+        Client client = clientMapper.toEntity(request);
         return clientMapper.toDto(clientRepository.save(client));
     }
 

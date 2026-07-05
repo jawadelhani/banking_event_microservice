@@ -51,7 +51,7 @@ public class AgencyAlertController {
     public ResponseEntity<AgencyAlertDto> createAlert(
             @Valid @RequestBody CreateAgencyAlertRequest request,
             UriComponentsBuilder uriBuilder) {
-        var dto = agencyAlertService.create(request);
+        AgencyAlertDto dto = agencyAlertService.create(request);
         var uri = uriBuilder.path("/alerts/{id}").buildAndExpand(dto.getId()).toUri();
         return ResponseEntity.created(uri).body(dto);
     }

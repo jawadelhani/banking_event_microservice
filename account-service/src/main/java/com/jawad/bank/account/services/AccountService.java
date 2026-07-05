@@ -3,6 +3,7 @@ package com.jawad.bank.account.services;
 import com.jawad.bank.account.dtos.AccountDto;
 import com.jawad.bank.account.dtos.CreateAccountRequest;
 import com.jawad.bank.account.dtos.UpdateAccountRequest;
+import com.jawad.bank.account.entities.Account;
 import com.jawad.bank.account.mappers.AccountMapper;
 import com.jawad.bank.account.repositories.AccountRepository;
 import com.jawad.bank.account.repositories.ClientRepository;
@@ -49,7 +50,7 @@ public class AccountService {
         if (!clientRepository.existsById(request.getClientId())) {
             return Optional.empty();
         }
-        var account = accountMapper.toEntity(request);
+        Account account = accountMapper.toEntity(request);
         return Optional.of(accountMapper.toDto(accountRepository.save(account)));
     }
 

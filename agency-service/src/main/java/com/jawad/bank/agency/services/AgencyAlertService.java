@@ -3,6 +3,7 @@ package com.jawad.bank.agency.services;
 import com.jawad.bank.agency.dtos.AgencyAlertDto;
 import com.jawad.bank.agency.dtos.CreateAgencyAlertRequest;
 import com.jawad.bank.agency.dtos.UpdateAgencyAlertRequest;
+import com.jawad.bank.agency.entities.AgencyAlert;
 import com.jawad.bank.agency.entities.Criticality;
 import com.jawad.bank.agency.mappers.AgencyAlertMapper;
 import com.jawad.bank.agency.repositories.AgencyAlertRepository;
@@ -55,7 +56,7 @@ public class AgencyAlertService {
 
     @Transactional
     public AgencyAlertDto create(CreateAgencyAlertRequest request) {
-        var alert = agencyAlertMapper.toEntity(request);
+        AgencyAlert alert = agencyAlertMapper.toEntity(request);
         return agencyAlertMapper.toDto(agencyAlertRepository.save(alert));
     }
 
