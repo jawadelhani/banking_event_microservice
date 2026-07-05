@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         SERVICES = "account-service agency-service notification-service transaction-simulator-service"
+        DOCKERHUB_USERNAME = "jawad1010"
     }
 
     stages {
@@ -18,6 +19,7 @@ pipeline {
                 script {
                     for (service in env.SERVICES.split()) {
                         echo "Compiling ${service}"
+
                         dir(service) {
                             sh 'mvn clean compile'
                         }
@@ -30,7 +32,8 @@ pipeline {
             steps {
                 script {
                     for (service in env.SERVICES.split()) {
-                        echo "Testing ${service}"
+                        echo "Running tests for ${service}"
+
                         dir(service) {
                             sh 'mvn test'
                         }
@@ -44,6 +47,7 @@ pipeline {
                 script {
                     for (service in env.SERVICES.split()) {
                         echo "Packaging ${service}"
+
                         dir(service) {
                             sh 'mvn package -DskipTests'
                         }
@@ -56,24 +60,71 @@ pipeline {
             steps {
                 script {
                     for (service in env.SERVICES.split()) {
-                        echo "Building Docker image for ${service}"
+
+                        echo "Building Docker image: ${service}"
 
                         dir(service) {
-                            sh "docker build -t ${service}:latest ."
+                            sh """
+                                docker build \
+                                -t ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER} \
+                                -t ${DOCKERHUB_USERNAME}/${service}:latest .
+                            """
                         }
                     }
                 }
             }
         }
+
+        stage('Push Docker Images') {
+            steps {
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+                    '''
+
+                    script {
+                        for (service in env.SERVICES.split()) {
+
+                            sh """
+                                docker push ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}
+                                docker push ${DOCKERHUB_USERNAME}/${service}:latest
+                            """
+                        }
+                    }
+
+                    sh 'docker logout'
+                }
+            }
+        }
+
     }
 
     post {
+
         success {
-            echo 'CI Pipeline completed successfully!'
+            echo "======================================"
+            echo "CI Pipeline completed successfully!"
+            echo "Build Number: ${BUILD_NUMBER}"
+            echo "Docker images pushed to Docker Hub."
+            echo "======================================"
         }
 
         failure {
-            echo 'CI Pipeline failed!'
+            echo "======================================"
+            echo "CI Pipeline failed!"
+            echo "======================================"
+        }
+
+        always {
+            cleanWs()
         }
     }
 }
