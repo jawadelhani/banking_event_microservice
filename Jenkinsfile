@@ -9,34 +9,40 @@ pipeline {
             }
         }
 
-        stage('Build Account Service') {
+        stage('Compile Services') {
             steps {
-                dir('account-service') {
-                    sh 'mvn clean install -DskipTests'
+                script {
+                    def services = [
+                        'account-service',
+                        'agency-service',
+                        'notification-service',
+                        'transaction-simulator-service'
+                    ]
+
+                    for (service in services) {
+                        dir(service) {
+                            sh 'mvn clean compile'
+                        }
+                    }
                 }
             }
         }
 
-        stage('Build Agency Service') {
+        stage('Run Unit Tests') {
             steps {
-                dir('agency-service') {
-                    sh 'mvn clean install -DskipTests'
-                }
-            }
-        }
+                script {
+                    def services = [
+                        'account-service',
+                        'agency-service',
+                        'notification-service',
+                        'transaction-simulator-service'
+                    ]
 
-        stage('Build Notification Service') {
-            steps {
-                dir('notification-service') {
-                    sh 'mvn clean install -DskipTests'
-                }
-            }
-        }
-
-        stage('Build Transaction Simulator Service') {
-            steps {
-                dir('transaction-simulator-service') {
-                    sh 'mvn clean install -DskipTests'
+                    for (service in services) {
+                        dir(service) {
+                            sh 'mvn test'
+                        }
+                    }
                 }
             }
         }
@@ -44,7 +50,7 @@ pipeline {
 
     post {
         success {
-            echo 'All microservices built successfully!'
+            echo 'Compilation and tests succeeded!'
         }
 
         failure {
