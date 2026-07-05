@@ -57,7 +57,10 @@ pipeline {
                 script {
                     for (service in env.SERVICES.split()) {
                         echo "Building Docker image for ${service}"
-                        sh "docker build -t ${service}:latest ./${service}"
+
+                        dir(service) {
+                            sh "docker build -t ${service}:latest ."
+                        }
                     }
                 }
             }
@@ -66,15 +69,11 @@ pipeline {
 
     post {
         success {
-            echo '========================================='
             echo 'CI Pipeline completed successfully!'
-            echo '========================================='
         }
 
         failure {
-            echo '========================================='
             echo 'CI Pipeline failed!'
-            echo '========================================='
         }
     }
 }
