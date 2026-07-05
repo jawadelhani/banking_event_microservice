@@ -16,15 +16,39 @@ pipeline {
                 }
             }
         }
+
+        stage('Build Agency Service') {
+            steps {
+                dir('agency-service') {
+                    sh 'mvn clean install -DskipTests'
+                }
+            }
+        }
+
+        stage('Build Notification Service') {
+            steps {
+                dir('notification-service') {
+                    sh 'mvn clean install -DskipTests'
+                }
+            }
+        }
+
+        stage('Build Transaction Simulator Service') {
+            steps {
+                dir('transaction-simulator-service') {
+                    sh 'mvn clean install -DskipTests'
+                }
+            }
+        }
     }
 
     post {
         success {
-            echo 'Account Service built successfully!'
+            echo 'All microservices built successfully!'
         }
 
         failure {
-            echo 'Build failed!'
+            echo 'Pipeline failed.'
         }
     }
 }
