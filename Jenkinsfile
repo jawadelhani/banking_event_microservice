@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+     options {
+            timestamps()
+     }
+
+    tools {
+        maven 'Maven'
+    }
+
     environment {
         SERVICES = "account-service agency-service notification-service transaction-simulator-service"
         DOCKERHUB_USERNAME = "jawad1010"
@@ -38,6 +46,32 @@ pipeline {
                             sh 'mvn test'
                         }
                     }
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                script {
+
+                    withSonarQubeEnv('SonarQube') {
+
+                        for (service in env.SERVICES.split()) {
+
+                            echo "Analyzing ${service}"
+
+                            dir(service) {
+                                sh """
+                                    mvn sonar:sonar \
+                                      -Dsonar.projectKey=${service} \
+                                      -Dsonar.projectName=${service}
+                                """
+                            }
+
+                        }
+
+                    }
+
                 }
             }
         }
