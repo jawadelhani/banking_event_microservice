@@ -1,9 +1,9 @@
 pipeline {
     agent any
 
-     options {
-            timestamps()
-     }
+    options {
+        timestamps()
+    }
 
     tools {
         maven 'Maven'
@@ -53,7 +53,6 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-
                     withSonarQubeEnv('SonarQube') {
 
                         for (service in env.SERVICES.split()) {
@@ -67,23 +66,24 @@ pipeline {
                                       -Dsonar.projectName=${service}
                                 """
                             }
-
                         }
-
                     }
-
                 }
             }
         }
 
         stage('OWASP Dependency Check') {
             steps {
+                script {
+                    for (service in env.SERVICES.split()) {
 
-                dependencyCheck additionalArguments: '--scan . --format HTML --format XML',
-                                odcInstallation: 'DependencyCheck'
+                        echo "Scanning dependencies for ${service}"
 
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-
+                        dir(service) {
+                            sh 'mvn org.owasp:dependency-check-maven:check'
+                        }
+                    }
+                }
             }
         }
 
