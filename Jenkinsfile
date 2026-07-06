@@ -72,33 +72,33 @@ pipeline {
             }
         }
 
-        stage('OWASP Dependency Check') {
-            steps {
-                script {
+       stage('OWASP Dependency Check') {
+           steps {
+               script {
 
-                    withCredentials([
-                        string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
-                    ]) {
+                   withCredentials([
+                       string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
+                   ]) {
 
-                        for (service in env.SERVICES.split()) {
+                       for (service in env.SERVICES.split()) {
 
-                            echo "Scanning dependencies for ${service}"
+                           echo "Scanning dependencies for ${service}"
 
-                            dir(service) {
+                           dir(service) {
 
-                                sh """
-                                    mvn dependency-check:check \
-                                        -DnvdApiKey=${NVD_API_KEY}
-                                """
+                               withEnv(["NVD_API_KEY=${NVD_API_KEY}"]) {
+                                   sh '''
+                                       mvn dependency-check:check \
+                                         -DnvdApiKey=$NVD_API_KEY
+                                   '''
+                               }
 
-                            }
-                        }
-
-                    }
-
-                }
-            }
-        }
+                           }
+                       }
+                   }
+               }
+           }
+       }
 
         stage('Package') {
             steps {
@@ -165,24 +165,61 @@ pipeline {
 
     }
 
-    post {
+   post {
 
-        success {
-            echo "======================================"
-            echo "CI Pipeline completed successfully!"
-            echo "Build Number: ${BUILD_NUMBER}"
-            echo "Docker images pushed to Docker Hub."
-            echo "======================================"
-        }
+       always {
 
-        failure {
-            echo "======================================"
-            echo "CI Pipeline failed!"
-            echo "======================================"
-        }
+           publishHTML([
+               allowMissing: true,
+               alwaysLinkToLastBuild: true,
+               keepAll: true,
+               reportDir: 'account-service/target',
+               reportFiles: 'dependency-check-report.html',
+               reportName: 'Account Service Dependency Check'
+           ])
 
-        always {
-            cleanWs()
-        }
-    }
+           publishHTML([
+               allowMissing: true,
+               alwaysLinkToLastBuild: true,
+               keepAll: true,
+               reportDir: 'agency-service/target',
+               reportFiles: 'dependency-check-report.html',
+               reportName: 'Agency Service Dependency Check'
+           ])
+
+           publishHTML([
+               allowMissing: true,
+               alwaysLinkToLastBuild: true,
+               keepAll: true,
+               reportDir: 'notification-service/target',
+               reportFiles: 'dependency-check-report.html',
+               reportName: 'Notification Service Dependency Check'
+           ])
+
+           publishHTML([
+               allowMissing: true,
+               alwaysLinkToLastBuild: true,
+               keepAll: true,
+               reportDir: 'transaction-simulator-service/target',
+               reportFiles: 'dependency-check-report.html',
+               reportName: 'Transaction Simulator Dependency Check'
+           ])
+
+           cleanWs()
+       }
+
+       success {
+           echo "======================================"
+           echo "CI Pipeline completed successfully!"
+           echo "Build Number: ${BUILD_NUMBER}"
+           echo "Docker images pushed to Docker Hub."
+           echo "======================================"
+       }
+
+       failure {
+           echo "======================================"
+           echo "CI Pipeline failed!"
+           echo "======================================"
+       }
+   }
 }
