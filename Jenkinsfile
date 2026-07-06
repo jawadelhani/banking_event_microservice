@@ -75,14 +75,27 @@ pipeline {
         stage('OWASP Dependency Check') {
             steps {
                 script {
-                    for (service in env.SERVICES.split()) {
 
-                        echo "Scanning dependencies for ${service}"
+                    withCredentials([
+                        string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
+                    ]) {
 
-                        dir(service) {
-                            sh 'mvn org.owasp:dependency-check-maven:check'
+                        for (service in env.SERVICES.split()) {
+
+                            echo "Scanning dependencies for ${service}"
+
+                            dir(service) {
+
+                                sh """
+                                    mvn dependency-check:check \
+                                        -DnvdApiKey=${NVD_API_KEY}
+                                """
+
+                            }
                         }
+
                     }
+
                 }
             }
         }
