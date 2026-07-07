@@ -132,6 +132,10 @@ pipeline {
 
                         sh """
                             trivy image \
+                              --cache-dir /var/jenkins_home/trivy-cache \
+                              --timeout 20m \
+                              --skip-version-check \
+                              --scanners vuln \
                               --severity HIGH,CRITICAL \
                               --exit-code 0 \
                               --format table \
