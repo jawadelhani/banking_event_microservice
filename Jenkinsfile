@@ -138,8 +138,9 @@ pipeline {
                               --scanners vuln \
                               --severity HIGH,CRITICAL \
                               --exit-code 0 \
-                              --format table \
-                              -o trivy-reports/${service}.txt \
+                              --format template \
+                              --template "@/var/jenkins_home/trivy-template/html.tpl" \
+                              -o trivy-reports/${service}.html \
                               ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}
                         """
                     }
@@ -181,6 +182,77 @@ pipeline {
     post {
 
         always {
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'account-service/target',
+                reportFiles: 'dependency-check-report.html',
+                reportName: 'OWASP - Account Service'
+            ])
+
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'agency-service/target',
+                reportFiles: 'dependency-check-report.html',
+                reportName: 'OWASP - Agency Service'
+            ])
+
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'notification-service/target',
+                reportFiles: 'dependency-check-report.html',
+                reportName: 'OWASP - Notification Service'
+            ])
+
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'transaction-simulator-service/target',
+                reportFiles: 'dependency-check-report.html',
+                reportName: 'OWASP - Transaction Simulator'
+            ])
+
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'trivy-reports',
+                reportFiles: 'account-service.html',
+                reportName: 'Trivy - Account Service'
+            ])
+
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'trivy-reports',
+                reportFiles: 'agency-service.html',
+                reportName: 'Trivy - Agency Service'
+            ])
+
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'trivy-reports',
+                reportFiles: 'notification-service.html',
+                reportName: 'Trivy - Notification Service'
+            ])
+
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'trivy-reports',
+                reportFiles: 'transaction-simulator-service.html',
+                reportName: 'Trivy - Transaction Simulator'
+            ])
 
             archiveArtifacts(
                 artifacts: 'trivy-reports/*.txt',
