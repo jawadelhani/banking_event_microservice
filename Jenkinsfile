@@ -26,8 +26,6 @@ pipeline {
             steps {
                 script {
                     for (service in env.SERVICES.split()) {
-                        echo "Compiling ${service}"
-
                         dir(service) {
                             sh 'mvn clean compile'
                         }
@@ -40,8 +38,6 @@ pipeline {
             steps {
                 script {
                     for (service in env.SERVICES.split()) {
-                        echo "Running tests for ${service}"
-
                         dir(service) {
                             sh 'mvn test'
                         }
@@ -54,16 +50,12 @@ pipeline {
             steps {
                 script {
                     withSonarQubeEnv('SonarQube') {
-
                         for (service in env.SERVICES.split()) {
-
-                            echo "Analyzing ${service}"
-
                             dir(service) {
                                 sh """
                                     mvn sonar:sonar \
-                                      -Dsonar.projectKey=${service} \
-                                      -Dsonar.projectName=${service}
+                                    -Dsonar.projectKey=${service} \
+                                    -Dsonar.projectName=${service}
                                 """
                             }
                         }
@@ -72,40 +64,24 @@ pipeline {
             }
         }
 
-       stage('OWASP Dependency Check') {
-           steps {
-               script {
+        stage('OWASP Dependency Check') {
+            steps {
 
-                   withCredentials([
-                       string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
-                   ]) {
+                dependencyCheck(
+                    odcInstallation: 'DependencyCheck',
+                    additionalArguments: '--scan . --format HTML --format XML'
+                )
 
-                       for (service in env.SERVICES.split()) {
-
-                           echo "Scanning dependencies for ${service}"
-
-                           dir(service) {
-
-                               withEnv(["NVD_API_KEY=${NVD_API_KEY}"]) {
-                                   sh '''
-                                       mvn dependency-check:check \
-                                         -DnvdApiKey=$NVD_API_KEY
-                                   '''
-                               }
-
-                           }
-                       }
-                   }
-               }
-           }
-       }
+                dependencyCheckPublisher(
+                    pattern: '**/dependency-check-report.xml'
+                )
+            }
+        }
 
         stage('Package') {
             steps {
                 script {
                     for (service in env.SERVICES.split()) {
-                        echo "Packaging ${service}"
-
                         dir(service) {
                             sh 'mvn package -DskipTests'
                         }
@@ -119,8 +95,6 @@ pipeline {
                 script {
                     for (service in env.SERVICES.split()) {
 
-                        echo "Building Docker image: ${service}"
-
                         dir(service) {
                             sh """
                                 docker build \
@@ -128,6 +102,7 @@ pipeline {
                                 -t ${DOCKERHUB_USERNAME}/${service}:latest .
                             """
                         }
+
                     }
                 }
             }
@@ -137,19 +112,17 @@ pipeline {
             steps {
                 script {
 
+                    sh 'mkdir -p trivy-reports'
+
                     for (service in env.SERVICES.split()) {
 
-                        echo "Scanning ${service}"
-
                         sh """
-                            mkdir -p trivy-reports
-
                             trivy image \
-                                --severity HIGH,CRITICAL \
-                                --exit-code 0 \
-                                --format table \
-                                ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER} \
-                                > trivy-reports/${service}.txt
+                              --severity HIGH,CRITICAL \
+                              --exit-code 0 \
+                              --format table \
+                              -o trivy-reports/${service}.txt \
+                              ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}
                         """
                     }
                 }
@@ -185,64 +158,31 @@ pipeline {
                 }
             }
         }
-
     }
 
-   post {
+    post {
 
-       always {
+        always {
 
-           publishHTML([
-               allowMissing: true,
-               alwaysLinkToLastBuild: true,
-               keepAll: true,
-               reportDir: 'account-service/target',
-               reportFiles: 'dependency-check-report.html',
-               reportName: 'Account Service Dependency Check'
-           ])
+            archiveArtifacts(
+                artifacts: 'trivy-reports/*.txt',
+                fingerprint: true
+            )
 
-           publishHTML([
-               allowMissing: true,
-               alwaysLinkToLastBuild: true,
-               keepAll: true,
-               reportDir: 'agency-service/target',
-               reportFiles: 'dependency-check-report.html',
-               reportName: 'Agency Service Dependency Check'
-           ])
+            cleanWs()
+        }
 
-           publishHTML([
-               allowMissing: true,
-               alwaysLinkToLastBuild: true,
-               keepAll: true,
-               reportDir: 'notification-service/target',
-               reportFiles: 'dependency-check-report.html',
-               reportName: 'Notification Service Dependency Check'
-           ])
+        success {
+            echo "======================================"
+            echo "CI Pipeline completed successfully!"
+            echo "Build Number: ${BUILD_NUMBER}"
+            echo "======================================"
+        }
 
-           publishHTML([
-               allowMissing: true,
-               alwaysLinkToLastBuild: true,
-               keepAll: true,
-               reportDir: 'transaction-simulator-service/target',
-               reportFiles: 'dependency-check-report.html',
-               reportName: 'Transaction Simulator Dependency Check'
-           ])
-
-           cleanWs()
-       }
-
-       success {
-           echo "======================================"
-           echo "CI Pipeline completed successfully!"
-           echo "Build Number: ${BUILD_NUMBER}"
-           echo "Docker images pushed to Docker Hub."
-           echo "======================================"
-       }
-
-       failure {
-           echo "======================================"
-           echo "CI Pipeline failed!"
-           echo "======================================"
-       }
-   }
+        failure {
+            echo "======================================"
+            echo "CI Pipeline failed!"
+            echo "======================================"
+        }
+    }
 }
