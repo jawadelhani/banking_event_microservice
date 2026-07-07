@@ -67,10 +67,22 @@ pipeline {
         stage('OWASP Dependency Check') {
             steps {
 
-                dependencyCheck(
-                    odcInstallation: 'DependencyCheck',
-                    additionalArguments: '--scan . --format HTML --format XML'
-                )
+                withCredentials([
+                    string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
+                ]) {
+
+                    dependencyCheck(
+                        odcInstallation: 'DependencyCheck',
+                        additionalArguments: """
+                            --scan .
+                            --format HTML
+                            --format XML
+                            --nvdApiKey ${NVD_API_KEY}
+                            --data /var/jenkins_home/owasp-dc-data
+                            --disableAssembly
+                        """
+                    )
+                }
 
                 dependencyCheckPublisher(
                     pattern: '**/dependency-check-report.xml'
