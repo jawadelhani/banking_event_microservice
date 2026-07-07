@@ -133,6 +133,29 @@ pipeline {
             }
         }
 
+        stage('Trivy Image Scan') {
+            steps {
+                script {
+
+                    for (service in env.SERVICES.split()) {
+
+                        echo "Scanning ${service}"
+
+                        sh """
+                            mkdir -p trivy-reports
+
+                            trivy image \
+                                --severity HIGH,CRITICAL \
+                                --exit-code 0 \
+                                --format table \
+                                ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER} \
+                                > trivy-reports/${service}.txt
+                        """
+                    }
+                }
+            }
+        }
+
         stage('Push Docker Images') {
             steps {
 
