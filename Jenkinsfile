@@ -255,8 +255,8 @@ pipeline {
             ])
 
             archiveArtifacts(
-                artifacts: 'trivy-reports/*.txt',
-                fingerprint: true
+                artifacts: '**/*.html',
+                allowEmptyArchive: true
             )
 
             cleanWs()
