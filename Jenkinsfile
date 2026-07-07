@@ -64,31 +64,37 @@ pipeline {
             }
         }
 
-        stage('OWASP Dependency Check') {
-            steps {
+         stage('OWASP Dependency Check') {
+                    steps {
+                        script {
+                            for (service in env.SERVICES.split()) {
 
-                withCredentials([
-                    string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
-                ]) {
+                                echo "Scanning dependencies for ${service}"
+                            withCredentials([
+                                string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
+                            ]) {
 
-                    dependencyCheck(
-                        odcInstallation: 'DependencyCheck',
-                        additionalArguments: """
-                            --scan .
-                            --format HTML
-                            --format XML
-                            --nvdApiKey ${NVD_API_KEY}
-                            --data /var/jenkins_home/owasp-dc-data
-                            --disableAssembly
-                        """
-                    )
+                                dir(service) {
+                                    sh 'mvn org.owasp:dependency-check-maven:check'
+                                for (service in env.SERVICES.split()) {
+
+                                    echo "Scanning dependencies for ${service}"
+
+                                    dir(service) {
+
+                                        sh """
+                                            mvn dependency-check:check \
+                                                -DnvdApiKey=${NVD_API_KEY}
+                                        """
+
+                                    }
+                                }
+
+                            }
+
+                        }
+                    }
                 }
-
-                dependencyCheckPublisher(
-                    pattern: '**/dependency-check-report.xml'
-                )
-            }
-        }
 
         stage('Package') {
             steps {
