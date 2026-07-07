@@ -64,33 +64,33 @@ pipeline {
             }
         }
 
-         stage('OWASP Dependency Check') {
-             steps {
-                 script {
+        stage('OWASP Dependency Check') {
+            steps {
+                script {
 
-                     withCredentials([
-                         string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
-                     ]) {
+                    withCredentials([
+                        string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
+                    ]) {
 
-                         for (service in env.SERVICES.split()) {
+                        for (service in env.SERVICES.split()) {
 
-                             echo "Scanning dependencies for ${service}"
+                            echo "Scanning dependencies for ${service}"
 
-                             dir(service) {
+                            dir(service) {
 
-                                 sh """
-                                     mvn dependency-check:check \
-                                         -DnvdApiKey=${NVD_API_KEY}
-                                 """
+                               sh '''
+                                   mvn dependency-check:check \
+                                       -DnvdApiKey=$NVD_API_KEY \
+                                       -DdataDirectory=/var/jenkins_home/owasp-dc-data \
+                                       -Danalyzer.assembly.enabled=false
+                               '''
 
-                             }
-                         }
-
-                     }
-
-                 }
-             }
-         }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         stage('Package') {
             steps {
