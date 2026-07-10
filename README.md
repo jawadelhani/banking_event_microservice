@@ -218,34 +218,137 @@ Expected:
 ```json
 {
   "name": "account-service",
-  "profiles": ["default"],
-  ...
+  "profiles": ["default"]
 }
 ```
 
+# Authentication with Keycloak
+
+The API Gateway is protected using Keycloak OAuth2 Resource Server.
+
+All requests to the microservices must pass through the Gateway and include a valid JWT access token.
+
+## Keycloak
+
+Default Realm
+
+```
+banking
+```
+
+Default Client
+
+```
+banking-client
+```
+
+Default Test User
+
+```
+Username: jawad
+Password: 1234
+```
+
 ---
 
-# Test Services Through Gateway
+## Obtain an Access Token
 
-Example endpoints:
-
-```
-http://localhost:9090/account-service/api/accounts
-```
+Send a POST request to:
 
 ```
-http://localhost:9090/agency-service/api/agencies
+http://localhost:8180/realms/banking/protocol/openid-connect/token
 ```
 
-```
-http://localhost:9090/notification-service/api/notifications
-```
+Headers
 
 ```
-http://localhost:9090/transaction-simulator-service/api/transactions
+Content-Type: application/x-www-form-urlencoded
 ```
+
+Body
+
+```
+grant_type=password
+client_id=banking-client
+username=jawad
+password=1234
+```
+
+If the client is confidential, also include
+
+```
+client_secret=<your-client-secret>
+```
+
+A successful response returns
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+Copy the `access_token`.
 
 ---
+
+## Test Protected APIs
+
+Include the token in the Authorization header.
+
+```
+Authorization: Bearer <access_token>
+```
+
+Example requests
+
+```
+GET http://localhost:9090/account-service/accounts
+```
+
+```
+GET http://localhost:9090/agency-service/alerts
+```
+
+```
+GET http://localhost:9090/notification-service/notifications
+```
+
+```
+GET http://localhost:9090/transaction-simulator-service/transactions
+```
+
+Without a valid JWT token the Gateway returns
+
+```
+401 Unauthorized
+```
+
+With a valid token the request is forwarded to the target microservice.
+
+---
+
+## Public Endpoints
+
+The following endpoints do **not** require authentication:
+
+```
+http://localhost:8761
+```
+
+```
+http://localhost:8888
+```
+
+```
+http://localhost:9090/actuator/health
+```
+
+```
+http://localhost:9090/actuator/gateway/routes
+```
+
+These endpoints are intended for service discovery, configuration, and monitoring.
 
 # CI Pipeline
 
