@@ -15,17 +15,20 @@ public class SecurityConfig {
     public SecurityWebFilterChain securityFilterChain(ServerHttpSecurity http) {
 
         http.csrf(ServerHttpSecurity.CsrfSpec::disable)
+
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers(
                                 "/actuator/**",
                                 "/eureka/**"
                         ).permitAll()
 
-                        .anyExchange().authenticated())
+                        .anyExchange().authenticated()
+                )
+
                 .oauth2ResourceServer(oauth ->
-                        oauth.jwt(Customizer.withDefaults()));
+                        oauth.jwt(Customizer.withDefaults())
+                );
 
         return http.build();
     }
 }
-
