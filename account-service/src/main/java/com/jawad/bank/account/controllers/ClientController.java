@@ -7,6 +7,7 @@ import com.jawad.bank.account.services.ClientService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -20,12 +21,14 @@ public class ClientController {
 
     private final ClientService clientService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public Iterable<ClientDto> getAllClients(
             @RequestParam(required = false, defaultValue = "fullName", name = "sort") String sort) {
         return clientService.findAll(sort);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<ClientDto> getClient(@PathVariable UUID id) {
         return clientService.findById(id)
@@ -33,6 +36,7 @@ public class ClientController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/cin/{cin}")
     public ResponseEntity<ClientDto> getClientByCin(@PathVariable String cin) {
         return clientService.findByCin(cin)
@@ -40,6 +44,7 @@ public class ClientController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> createClient(
             @Valid @RequestBody CreateClientRequest request,
@@ -52,6 +57,7 @@ public class ClientController {
         return ResponseEntity.created(uri).body(clientDto);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ClientDto> updateClient(
             @PathVariable UUID id,
@@ -61,6 +67,7 @@ public class ClientController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteClient(@PathVariable UUID id) {
         if (!clientService.delete(id)) {

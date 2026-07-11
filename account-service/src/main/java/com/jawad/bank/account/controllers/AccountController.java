@@ -7,6 +7,7 @@ import com.jawad.bank.account.services.AccountService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -21,10 +22,12 @@ public class AccountController {
     private final AccountService accountService;
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public Iterable<AccountDto> getAllAccounts() {
         return accountService.findAll();
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<AccountDto> getAccount(@PathVariable UUID id) {
         return accountService.findById(id)
@@ -32,11 +35,13 @@ public class AccountController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/client/{clientId}")
     public Iterable<AccountDto> getAccountsByClient(@PathVariable UUID clientId) {
         return accountService.findByClientId(clientId);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/number/{accountNumber}")
     public ResponseEntity<AccountDto> getAccountByNumber(@PathVariable String accountNumber) {
         return accountService.findByAccountNumber(accountNumber)
@@ -44,6 +49,7 @@ public class AccountController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<?> createAccount(
             @Valid @RequestBody CreateAccountRequest request,
@@ -60,6 +66,7 @@ public class AccountController {
         return ResponseEntity.created(uri).body(accountDto);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<AccountDto> updateAccount(
             @PathVariable UUID id,
@@ -69,6 +76,7 @@ public class AccountController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAccount(@PathVariable UUID id) {
         if (!accountService.delete(id)) {

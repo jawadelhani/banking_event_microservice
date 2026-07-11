@@ -218,42 +218,61 @@ Expected:
 ```json
 {
   "name": "account-service",
-  "profiles": ["default"]
+  "profiles": ["default"] 
 }
 ```
+# Authentication & Role-Based Access Control (RBAC)
 
-# Authentication with Keycloak
+The Banking System uses **Keycloak** for authentication and authorization.
 
-The API Gateway is protected using Keycloak OAuth2 Resource Server.
+Security is implemented as follows:
 
-All requests to the microservices must pass through the Gateway and include a valid JWT access token.
+- Keycloak authenticates users.
+- The API Gateway validates JWT access tokens.
+- Each microservice enforces authorization based on user roles.
+- All client requests must pass through the Gateway.
 
-## Keycloak
+---
 
-Default Realm
+## Keycloak Configuration
+
+Realm
 
 ```
 banking
 ```
 
-Default Client
+Client
 
 ```
 banking-client
 ```
 
-Default Test User
+---
+
+## Test Users
+
+### Admin
+
+```
+Username: admin
+Password: admin123
+Role: ADMIN
+```
+
+### Client
 
 ```
 Username: jawad
 Password: 1234
+Role: CLIENT
 ```
 
 ---
 
 ## Obtain an Access Token
 
-Send a POST request to:
+Send a POST request to
 
 ```
 http://localhost:8180/realms/banking/protocol/openid-connect/token
@@ -265,7 +284,16 @@ Headers
 Content-Type: application/x-www-form-urlencoded
 ```
 
-Body
+Body (Admin)
+
+```
+grant_type=password
+client_id=banking-client
+username=admin
+password=admin123
+```
+
+Body (Client)
 
 ```
 grant_type=password
@@ -274,82 +302,257 @@ username=jawad
 password=1234
 ```
 
-If the client is confidential, also include
+If your Keycloak client is confidential, also include
 
 ```
 client_secret=<your-client-secret>
 ```
 
-A successful response returns
+Successful response
 
 ```json
 {
-  "access_token": "eyJhbGciOiJIUzI1NiIs..."
+  "access_token": "eyJhbGciOi..."
 }
 ```
 
-Copy the `access_token`.
+Copy the value of **access_token**.
 
 ---
 
-## Test Protected APIs
+## Calling Protected APIs
 
-Include the token in the Authorization header.
+Include the JWT in every request.
 
 ```
 Authorization: Bearer <access_token>
 ```
 
-Example requests
+Example
 
 ```
 GET http://localhost:9090/account-service/accounts
 ```
 
+---
+
+# RBAC Testing
+
+## 1. Admin Access
+
+Login as
+
 ```
-GET http://localhost:9090/agency-service/alerts
+admin
+```
+
+Obtain an access token.
+
+The following requests should succeed.
+
+### Account Service
+
+```
+GET /account-service/accounts
 ```
 
 ```
-GET http://localhost:9090/notification-service/notifications
+POST /account-service/accounts
 ```
 
 ```
-GET http://localhost:9090/transaction-simulator-service/transactions
+PUT /account-service/accounts/{id}
 ```
 
-Without a valid JWT token the Gateway returns
+```
+DELETE /account-service/accounts/{id}
+```
+
+### Agency Service
+
+```
+GET /agency-service/alerts
+```
+
+```
+POST /agency-service/alerts
+```
+
+```
+PATCH /agency-service/alerts/{id}/seen
+```
+
+```
+DELETE /agency-service/alerts/{id}
+```
+
+Expected
+
+```
+200 OK
+```
+
+or
+
+```
+201 Created
+```
+
+---
+
+## 2. Client Access
+
+Login as
+
+```
+jawad
+```
+
+Obtain an access token.
+
+The client can access only their own banking information.
+
+Example
+
+```
+GET /account-service/accounts/client/{clientId}
+```
+
+Expected
+
+```
+200 OK
+```
+
+The client should NOT be able to access administrative endpoints such as
+
+```
+GET /account-service/accounts
+```
+
+```
+POST /account-service/accounts
+```
+
+```
+DELETE /account-service/accounts/{id}
+```
+
+```
+GET /agency-service/alerts
+```
+
+```
+POST /agency-service/alerts
+```
+
+Expected response
+
+```
+403 Forbidden
+```
+
+---
+
+## Authentication Errors
+
+### No Token
+
+Calling a protected endpoint without a JWT
+
+Example
+
+```
+GET http://localhost:9090/account-service/accounts
+```
+
+Response
 
 ```
 401 Unauthorized
 ```
 
-With a valid token the request is forwarded to the target microservice.
+---
+
+### Invalid Token
+
+Using an expired or invalid JWT
+
+Response
+
+```
+401 Unauthorized
+```
 
 ---
 
-## Public Endpoints
+### Insufficient Permissions
 
-The following endpoints do **not** require authentication:
+Using a CLIENT token to access an ADMIN endpoint
+
+Response
+
+```
+403 Forbidden
+```
+
+---
+
+# Public Endpoints
+
+These endpoints do not require authentication.
+
+Eureka
 
 ```
 http://localhost:8761
 ```
 
+Config Server
+
 ```
 http://localhost:8888
 ```
+
+Gateway Health
 
 ```
 http://localhost:9090/actuator/health
 ```
 
+Gateway Routes
+
 ```
 http://localhost:9090/actuator/gateway/routes
 ```
 
-These endpoints are intended for service discovery, configuration, and monitoring.
+---
 
+# Security Architecture
+
+```
+                +----------------+
+                |    Keycloak    |
+                +--------+-------+
+                         |
+                    JWT Access Token
+                         |
+                         v
+                 +---------------+
+                 | API Gateway   |
+                 | JWT Validation|
+                 +-------+-------+
+                         |
+         +---------------+---------------+
+         |               |               |
+         v               v               v
+  Account Service   Agency Service   Notification Service
+      RBAC              RBAC               RBAC
+```
+
+Authentication is performed once at the Gateway.
+
+Authorization is enforced inside each microservice using Spring Security roles (`ROLE_ADMIN`, `ROLE_CLIENT`).
 # CI Pipeline
 
 The project includes a Jenkins CI pipeline that performs:

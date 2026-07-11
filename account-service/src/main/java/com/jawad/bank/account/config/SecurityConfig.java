@@ -19,7 +19,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth ->
-                        oauth.jwt(Customizer.withDefaults()));
+                        oauth.jwt(jwt ->
+                                jwt.jwtAuthenticationConverter(new JwtAuthConverter())
+                        )
+                );
 
         return http.build();
     }

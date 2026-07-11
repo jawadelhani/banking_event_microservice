@@ -8,6 +8,7 @@ import com.jawad.bank.agency.services.AgencyAlertService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -20,6 +21,7 @@ public class AgencyAlertController {
 
     private final AgencyAlertService agencyAlertService;
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public Iterable<AgencyAlertDto> getAllAlerts() {
         return agencyAlertService.findAll();
