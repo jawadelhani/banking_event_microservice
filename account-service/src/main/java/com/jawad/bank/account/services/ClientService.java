@@ -43,6 +43,16 @@ public class ClientService {
         return clientRepository.findByCin(cin).map(clientMapper::toDto);
     }
 
+    public Optional<ClientDto> findByKeycloakUserId(String keycloakUserId) {
+        return clientRepository
+                .findByKeycloakUserId(keycloakUserId)
+                .map(clientMapper::toDto);
+    }
+
+    public Optional<Client> findEntityByKeycloakUserId(String keycloakUserId) {
+        return clientRepository.findByKeycloakUserId(keycloakUserId);
+    }
+
     @Transactional
     public ClientDto create(CreateClientRequest request) {
         Client client = clientMapper.toEntity(request);

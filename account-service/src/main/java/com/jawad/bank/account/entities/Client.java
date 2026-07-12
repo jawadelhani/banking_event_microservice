@@ -26,6 +26,9 @@ public class Client {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @Column(name = "keycloak_user_id", unique = true)
+    private String keycloakUserId;
+
     @Column(nullable = false)
     private String email;
 

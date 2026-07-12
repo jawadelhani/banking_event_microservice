@@ -11,4 +11,6 @@ public interface ClientRepository extends JpaRepository<Client, UUID> {
     boolean existsByCin(String cin);
 
     Optional<Client> findByCin(String cin);
+
+    Optional<Client> findByKeycloakUserId(String keycloakUserId);
 }
