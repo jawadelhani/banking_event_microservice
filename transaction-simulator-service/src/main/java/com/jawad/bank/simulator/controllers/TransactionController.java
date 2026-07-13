@@ -1,16 +1,22 @@
 package com.jawad.bank.simulator.controllers;
 
+import com.jawad.bank.simulator.clients.AccountClient;
+import com.jawad.bank.simulator.dtos.AccountDto;
 import com.jawad.bank.simulator.dtos.CreateTransactionRequest;
 import com.jawad.bank.simulator.dtos.SimulateTransactionsRequest;
 import com.jawad.bank.simulator.dtos.TransactionDto;
 import com.jawad.bank.simulator.services.TransactionService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.List;
 import java.util.UUID;
 @RestController
 @AllArgsConstructor
@@ -18,6 +24,8 @@ import java.util.UUID;
 public class TransactionController {
 
     private final TransactionService transactionService;
+    private final AccountClient accountClient;
+
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -68,5 +76,20 @@ public class TransactionController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public Iterable<TransactionDto> myTransactions(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        String authHeader = "Bearer " + jwt.getTokenValue();
+
+        List<AccountDto> accounts = accountClient.getCurrentAccounts(authHeader);
+
+        return accounts.stream()
+                .flatMap(account -> ((List<TransactionDto>) transactionService
+                        .findByAccountId(account.getId())).stream())
+                .toList();
     }
 }

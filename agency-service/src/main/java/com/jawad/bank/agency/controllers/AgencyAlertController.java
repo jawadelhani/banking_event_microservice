@@ -103,10 +103,7 @@ public class AgencyAlertController {
     public Iterable<AgencyAlertDto> myAlerts(
             @AuthenticationPrincipal Jwt jwt) {
 
-        ClientDto client =
-                accountClient.getCurrentClient(
-                        "Bearer " + jwt.getTokenValue()
-                );
+        ClientDto client = accountClient.getCurrentClient("Bearer " + jwt.getTokenValue());
 
         UUID clientId = client.getId();
 
