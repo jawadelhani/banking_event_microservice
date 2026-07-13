@@ -1,6 +1,8 @@
 package com.jawad.bank.agency.controllers;
 
+import com.jawad.bank.agency.clients.AccountClient;
 import com.jawad.bank.agency.dtos.AgencyAlertDto;
+import com.jawad.bank.agency.dtos.ClientDto;
 import com.jawad.bank.agency.dtos.CreateAgencyAlertRequest;
 import com.jawad.bank.agency.dtos.UpdateAgencyAlertRequest;
 import com.jawad.bank.agency.entities.Criticality;
@@ -9,6 +11,8 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -19,6 +23,8 @@ import java.util.UUID;
 public class AgencyAlertController {
 
     private final AgencyAlertService agencyAlertService;
+    private final AccountClient accountClient;
+
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -90,5 +96,20 @@ public class AgencyAlertController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public Iterable<AgencyAlertDto> myAlerts(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        ClientDto client =
+                accountClient.getCurrentClient(
+                        "Bearer " + jwt.getTokenValue()
+                );
+
+        UUID clientId = client.getId();
+
+        return agencyAlertService.findByClientId(clientId);
     }
 }
