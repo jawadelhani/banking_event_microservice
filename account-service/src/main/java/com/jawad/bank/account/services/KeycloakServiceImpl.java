@@ -27,26 +27,20 @@ public class KeycloakServiceImpl implements KeycloakService {
         UserRepresentation user = new UserRepresentation();
 
         user.setEnabled(true);
-        user.setRequiredActions(List.of()); // no required actions
         user.setUsername(request.getUsername());
-        user.setFirstName(request.getFirstName());
-        user.setLastName(request.getLastName()); // make sure RegisterRequest actually has this field
         user.setEmail(request.getEmail());
-
+        user.setEmailVerified(true);
         user.setFirstName(request.getFirstName());
+        user.setLastName(request.getLastName());
+        user.setRequiredActions(List.of());
 
         CredentialRepresentation credential = new CredentialRepresentation();
-
         credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue(request.getPassword());
         credential.setTemporary(false);
-
         user.setCredentials(List.of(credential));
 
-        Response response =
-                keycloak.realm(realm)
-                        .users()
-                        .create(user);
+        Response response = keycloak.realm(realm).users().create(user);
 
         if (response.getStatus() != 201) {
             throw new RuntimeException("Cannot create Keycloak user. HTTP " + response.getStatus());

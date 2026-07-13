@@ -2,14 +2,12 @@ package com.jawad.bank.account.dtos;
 
 import com.jawad.bank.account.entities.AccountStatus;
 import com.jawad.bank.account.entities.AccountType;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-@Getter
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class AccountDto {

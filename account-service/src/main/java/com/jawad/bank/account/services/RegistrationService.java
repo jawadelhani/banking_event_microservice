@@ -3,6 +3,8 @@ package com.jawad.bank.account.services;
 import com.jawad.bank.account.dtos.ClientDto;
 import com.jawad.bank.account.dtos.RegisterRequest;
 import com.jawad.bank.account.entities.Account;
+import com.jawad.bank.account.entities.AccountStatus;
+import com.jawad.bank.account.entities.AccountType;
 import com.jawad.bank.account.entities.Client;
 import com.jawad.bank.account.mappers.ClientMapper;
 import com.jawad.bank.account.repositories.AccountRepository;
@@ -97,7 +99,9 @@ public class RegistrationService {
 
         Client client = new Client();
 
-        client.setFullName(request.getFirstName());
+        client.setFullName(
+                request.getFirstName() + " " + request.getLastName()
+        );
         client.setEmail(request.getEmail());
         client.setCin(request.getCin());
 
@@ -109,9 +113,13 @@ public class RegistrationService {
 
         account.setClientId(saved.getId());
 
-        account.setBalance(BigDecimal.ZERO);
+        account.setBalance(request.getBalance() != null ? request.getBalance() : BigDecimal.ZERO);
 
         account.setAccountNumber(generateAccountNumber());
+
+        account.setAccountType(AccountType.COURANT);   // or SAVINGS
+
+        account.setStatus(AccountStatus.ACTIVE);
 
         accountRepository.save(account);
 

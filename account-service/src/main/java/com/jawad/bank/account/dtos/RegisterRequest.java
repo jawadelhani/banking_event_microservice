@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class RegisterRequest {
 
@@ -24,6 +26,8 @@ public class RegisterRequest {
 
     @Email
     private String email;
+
+    private BigDecimal balance;
 
     private String phone;
 
