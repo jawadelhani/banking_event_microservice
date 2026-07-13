@@ -16,8 +16,16 @@ public class SecurityConfig {
 
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+
+                        .requestMatchers(
+                                "/auth/register",
+                                "/auth/login",
+                                "/actuator/**"
+                        ).permitAll()
+
                         .anyRequest().authenticated()
                 )
+
                 .oauth2ResourceServer(oauth ->
                         oauth.jwt(jwt ->
                                 jwt.jwtAuthenticationConverter(new JwtAuthConverter())

@@ -19,7 +19,9 @@ public class SecurityConfig {
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers(
                                 "/actuator/**",
-                                "/eureka/**"
+                                "/eureka/**",
+                                "/account-service/auth/register",
+                                "/account-service/auth/login"
                         ).permitAll()
 
                         .anyExchange().authenticated()

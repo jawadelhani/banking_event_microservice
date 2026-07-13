@@ -3,11 +3,15 @@ package com.jawad.bank.account.controllers;
 import com.jawad.bank.account.dtos.AccountDto;
 import com.jawad.bank.account.dtos.CreateAccountRequest;
 import com.jawad.bank.account.dtos.UpdateAccountRequest;
+import com.jawad.bank.account.entities.Client;
 import com.jawad.bank.account.services.AccountService;
+import com.jawad.bank.account.services.ClientService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -20,6 +24,8 @@ import java.util.UUID;
 public class AccountController {
 
     private final AccountService accountService;
+    private final ClientService clientService; // add this
+
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -83,5 +89,17 @@ public class AccountController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public Iterable<AccountDto> me(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Client client = clientService
+                .findEntityByKeycloakUserId(jwt.getSubject())
+                .orElseThrow();
+
+        return accountService.findByClientId(client.getId());
     }
 }
