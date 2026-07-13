@@ -1,5 +1,7 @@
 package com.jawad.bank.notification.controllers;
 
+import com.jawad.bank.notification.clients.AccountClient;
+import com.jawad.bank.notification.dtos.ClientDto;
 import com.jawad.bank.notification.dtos.CreateNotificationRequest;
 import com.jawad.bank.notification.dtos.NotificationDto;
 import com.jawad.bank.notification.dtos.UpdateNotificationRequest;
@@ -8,6 +10,8 @@ import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -19,6 +23,8 @@ import java.util.UUID;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final AccountClient accountClient;
+
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -79,5 +85,12 @@ public class NotificationController {
         }
 
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public Iterable<NotificationDto> myNotifications(@AuthenticationPrincipal Jwt jwt) {
+        ClientDto client = accountClient.getCurrentClient("Bearer " + jwt.getTokenValue());
+        return notificationService.findByClientId(client.getId());
     }
 }
