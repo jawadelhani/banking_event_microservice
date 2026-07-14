@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -74,5 +75,14 @@ public class AccountService {
 
     public boolean existsByAccountNumber(String accountNumber) {
         return accountRepository.existsByAccountNumber(accountNumber);
+    }
+
+    // AccountService
+    @Transactional
+    public Optional<AccountDto> adjustBalance(UUID accountId, BigDecimal delta) {
+        return accountRepository.findById(accountId).map(account -> {
+            account.setBalance(account.getBalance().add(delta));
+            return accountMapper.toDto(accountRepository.save(account));
+        });
     }
 }

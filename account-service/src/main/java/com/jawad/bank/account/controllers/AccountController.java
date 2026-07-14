@@ -1,6 +1,7 @@
 package com.jawad.bank.account.controllers;
 
 import com.jawad.bank.account.dtos.AccountDto;
+import com.jawad.bank.account.dtos.BalanceAdjustmentRequest;
 import com.jawad.bank.account.dtos.CreateAccountRequest;
 import com.jawad.bank.account.dtos.UpdateAccountRequest;
 import com.jawad.bank.account.entities.Client;
@@ -89,6 +90,16 @@ public class AccountController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.noContent().build();
+    }
+
+    // AccountController
+    @PutMapping("/{id}/balance")
+    public ResponseEntity<AccountDto> adjustBalance(
+            @PathVariable UUID id,
+            @RequestBody BalanceAdjustmentRequest request) {
+        return accountService.adjustBalance(id, request.getDelta())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/me")
