@@ -37,6 +37,10 @@ public class Client {
     @Column(name = "monthly_income")
     private BigDecimal monthlyIncome;
 
+    @Column(name = "allow_notifications", nullable = false)
+    @Builder.Default
+    private Boolean allowNotifications = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

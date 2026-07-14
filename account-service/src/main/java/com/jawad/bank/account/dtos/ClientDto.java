@@ -1,13 +1,14 @@
 package com.jawad.bank.account.dtos;
 
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Getter
+@Data
 @AllArgsConstructor
 public class ClientDto {
     private UUID id;
@@ -15,6 +16,7 @@ public class ClientDto {
     private String fullName;
     private String email;
     private String phone;
+    private Boolean allowNotifications;
     private BigDecimal monthlyIncome;
     private LocalDateTime createdAt;
 }
