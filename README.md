@@ -20,6 +20,7 @@ Technologies:
 - Eureka Discovery Server
 - Spring Cloud Config
 - PostgreSQL
+- Keycloak
 - Docker
 - Jenkins
 - SonarQube
@@ -33,15 +34,16 @@ Technologies:
 - Java 17+
 - Maven 3.9+
 - PostgreSQL
+- Keycloak (running on `localhost:8180`)
 - Git
 - IntelliJ IDEA (optional)
 
 ---
 
-# Clone the project
+# Clone the Project
 
 ```bash
-git clonehttps://github.com/jawadelhani/banking_event_microservice
+git clone https://github.com/jawadelhani/banking_event_microservice
 cd banking_event_microservice
 ```
 
@@ -122,7 +124,19 @@ You should receive the configuration in JSON format.
 
 ---
 
-## 3. API Gateway
+## 3. Keycloak
+
+Start Keycloak and confirm the `banking` realm and `banking-client` client exist.
+
+Available at
+
+```
+http://localhost:8180
+```
+
+---
+
+## 4. API Gateway
 
 Run:
 
@@ -138,7 +152,7 @@ http://localhost:9090
 
 ---
 
-## 4. Account Service
+## 5. Account Service
 
 Run:
 
@@ -146,9 +160,11 @@ Run:
 account-service
 ```
 
+Port: `8081`
+
 ---
 
-## 5. Agency Service
+## 6. Agency Service
 
 Run:
 
@@ -156,9 +172,11 @@ Run:
 agency-service
 ```
 
+Port: `8083`
+
 ---
 
-## 6. Notification Service
+## 7. Notification Service
 
 Run:
 
@@ -166,15 +184,19 @@ Run:
 notification-service
 ```
 
+Port: `8082`
+
 ---
 
-## 7. Transaction Simulator
+## 8. Transaction Simulator Service
 
 Run:
 
 ```
 transaction-simulator-service
 ```
+
+Port: `8084`
 
 ---
 
@@ -218,19 +240,22 @@ Expected:
 ```json
 {
   "name": "account-service",
-  "profiles": ["default"] 
+  "profiles": ["default"]
 }
 ```
+
+---
+
 # Authentication & Role-Based Access Control (RBAC)
 
 The Banking System uses **Keycloak** for authentication and authorization.
 
 Security is implemented as follows:
 
-- Keycloak authenticates users.
-- The API Gateway validates JWT access tokens.
-- Each microservice enforces authorization based on user roles.
-- All client requests must pass through the Gateway.
+- Keycloak authenticates users and issues JWT access tokens.
+- Each microservice independently validates the JWT against Keycloak (via `issuer-uri`).
+- Each microservice enforces authorization based on user roles (`ROLE_ADMIN`, `ROLE_CLIENT`).
+- All client requests are routed through the API Gateway.
 
 ---
 
@@ -262,6 +287,8 @@ Role: ADMIN
 
 ### Client
 
+Register a new client through the API (see Account Service section below), or use an existing one:
+
 ```
 Username: jawad
 Password: 1234
@@ -270,7 +297,7 @@ Role: CLIENT
 
 ---
 
-## Obtain an Access Token
+## Obtain an Access Token Directly from Keycloak
 
 Send a POST request to
 
@@ -312,11 +339,16 @@ Successful response
 
 ```json
 {
-  "access_token": "eyJhbGciOi..."
+  "access_token": "eyJhbGciOi...",
+  "refresh_token": "eyJhbGciOi...",
+  "expires_in": 300,
+  "token_type": "Bearer"
 }
 ```
 
 Copy the value of **access_token**.
+
+> You can also obtain a token through `account-service`'s own `/auth/login` endpoint — see the Account Service testing section below for the recommended flow.
 
 ---
 
@@ -336,125 +368,210 @@ GET http://localhost:9090/account-service/accounts
 
 ---
 
-# RBAC Testing
+# Full Testing Guide
 
-## 1. Admin Access
+All requests below go through the API Gateway on port `9090`.
 
-Login as
+## 1. Account Service
 
-```
-admin
-```
-
-Obtain an access token.
-
-The following requests should succeed.
-
-### Account Service
+### Register a New Client
 
 ```
-GET /account-service/accounts
+POST http://localhost:9090/account-service/auth/register
 ```
 
-```
-POST /account-service/accounts
+Body
+
+```json
+{
+  "username": "client5",
+  "password": "1234",
+  "firstName": "John",
+  "lastName": "Doe",
+  "cin": "AA998877",
+  "email": "john@test.com",
+  "phone": "0611111111",
+  "address": "Rabat"
+}
 ```
 
-```
-PUT /account-service/accounts/{id}
-```
+This creates:
+
+- A Keycloak user with the `CLIENT` role
+- A `Client` row in the `accounts` database
+- A default `Account` row with a zero balance
+
+### Login
 
 ```
-DELETE /account-service/accounts/{id}
+POST http://localhost:9090/account-service/auth/login
 ```
 
-### Agency Service
+Body
 
-```
-GET /agency-service/alerts
-```
-
-```
-POST /agency-service/alerts
-```
-
-```
-PATCH /agency-service/alerts/{id}/seen
+```json
+{
+  "username": "client5",
+  "password": "1234"
+}
 ```
 
+Copy the returned `accessToken` — this is the JWT you'll use for every request below.
+
+### Current Client Profile
+
 ```
+GET http://localhost:9090/account-service/clients/me
+```
+
+Header
+
+```
+Authorization: Bearer <JWT>
+```
+
+### Current User's Accounts
+
+```
+GET http://localhost:9090/account-service/accounts/me
+```
+
+Header
+
+```
+Authorization: Bearer <JWT>
+```
+
+---
+
+## 2. Agency Service
+
+### Current User's Alerts
+
+```
+GET http://localhost:9090/agency-service/alerts/me
+```
+
+Header
+
+```
+Authorization: Bearer <JWT>
+```
+
+Expected
+
+```json
+[]
+```
+
+until alerts exist for this client.
+
+### Admin-Only Endpoints
+
+```
+GET    /agency-service/alerts
+GET    /agency-service/alerts/{id}
+POST   /agency-service/alerts
+PUT    /agency-service/alerts/{id}
 DELETE /agency-service/alerts/{id}
 ```
 
-Expected
+These should return `403 Forbidden` when called with a CLIENT token.
+
+---
+
+## 3. Notification Service
+
+### Current User's Notifications
 
 ```
-200 OK
+GET http://localhost:9090/notification-service/notifications/me
 ```
 
-or
+Header
 
 ```
-201 Created
+Authorization: Bearer <JWT>
+```
+
+Internally, this endpoint:
+
+```
+JWT
+  ↓
+Account Service (/clients/me)
+  ↓
+clientId
+  ↓
+notificationRepository.findByClientId(...)
+```
+
+### Admin-Only Endpoints
+
+```
+GET    /notification-service/notifications
+POST   /notification-service/notifications
+PUT    /notification-service/notifications/{id}
+DELETE /notification-service/notifications/{id}
 ```
 
 ---
 
-## 2. Client Access
+## 4. Transaction Simulator Service
 
-Login as
-
-```
-jawad
-```
-
-Obtain an access token.
-
-The client can access only their own banking information.
-
-Example
+### Current User's Transactions
 
 ```
-GET /account-service/accounts/client/{clientId}
+GET http://localhost:9090/transaction-simulator-service/transactions/me
 ```
 
-Expected
+Header
 
 ```
-200 OK
+Authorization: Bearer <JWT>
 ```
 
-The client should NOT be able to access administrative endpoints such as
+Internally, this endpoint:
 
 ```
-GET /account-service/accounts
+JWT
+  ↓
+Account Service (/accounts/me)
+  ↓
+Accounts
+  ↓
+transactionRepository.findByAccountId(...) for each account
 ```
 
-```
-POST /account-service/accounts
-```
+### Admin-Only Endpoints
 
 ```
-DELETE /account-service/accounts/{id}
-```
-
-```
-GET /agency-service/alerts
-```
-
-```
-POST /agency-service/alerts
-```
-
-Expected response
-
-```
-403 Forbidden
+GET    /transaction-simulator-service/transactions
+POST   /transaction-simulator-service/transactions
+POST   /transaction-simulator-service/transactions/simulate
+DELETE /transaction-simulator-service/transactions/{id}
 ```
 
 ---
 
-## Authentication Errors
+# Expected RBAC Behavior
+
+| Endpoint                                          | CLIENT | ADMIN |
+|----------------------------------------------------|:------:|:-----:|
+| `/account-service/clients/me`                       | ✅     | ❌ (403) |
+| `/account-service/accounts/me`                      | ✅     | ❌ (403) |
+| `/agency-service/alerts/me`                         | ✅     | ❌ (403) |
+| `/notification-service/notifications/me`            | ✅     | ❌ (403) |
+| `/transaction-simulator-service/transactions/me`     | ✅     | ❌ (403) |
+| `GET /account-service/clients`                      | ❌ (403) | ✅ |
+| `GET /account-service/accounts`                     | ❌ (403) | ✅ |
+| `GET /agency-service/alerts`                        | ❌ (403) | ✅ |
+| `GET /notification-service/notifications`           | ❌ (403) | ✅ |
+| `GET /transaction-simulator-service/transactions`    | ❌ (403) | ✅ |
+
+---
+
+# Authentication Errors
 
 ### No Token
 
@@ -474,9 +591,9 @@ Response
 
 ---
 
-### Invalid Token
+### Invalid or Expired Token
 
-Using an expired or invalid JWT
+Using an expired or malformed JWT
 
 Response
 
@@ -488,7 +605,7 @@ Response
 
 ### Insufficient Permissions
 
-Using a CLIENT token to access an ADMIN endpoint
+Using a CLIENT token to access an ADMIN endpoint (or vice versa)
 
 Response
 
@@ -526,6 +643,13 @@ Gateway Routes
 http://localhost:9090/actuator/gateway/routes
 ```
 
+Account Service Auth Endpoints
+
+```
+POST http://localhost:9090/account-service/auth/register
+POST http://localhost:9090/account-service/auth/login
+```
+
 ---
 
 # Security Architecture
@@ -540,19 +664,27 @@ http://localhost:9090/actuator/gateway/routes
                          v
                  +---------------+
                  | API Gateway   |
-                 | JWT Validation|
                  +-------+-------+
                          |
-         +---------------+---------------+
-         |               |               |
-         v               v               v
-  Account Service   Agency Service   Notification Service
-      RBAC              RBAC               RBAC
+     +-------------+-----+-----+-------------+
+     |             |           |             |
+     v             v           v             v
+Account       Agency      Notification   Transaction
+Service       Service     Service        Simulator
+  RBAC          RBAC        RBAC           RBAC
+     ^             |           |             |
+     |             |           |             |
+     +----- Feign calls to Account Service ---+
+        (/clients/me, /accounts/me — same JWT
+         forwarded on every internal call)
 ```
 
-Authentication is performed once at the Gateway.
+- Each microservice independently validates the JWT against Keycloak using its own `issuer-uri` config — there is no central trust broker beyond Keycloak itself.
+- Authorization is enforced inside each microservice using Spring Security roles (`ROLE_ADMIN`, `ROLE_CLIENT`) via `@PreAuthorize`.
+- Services that need data from `account-service` (Agency, Notification, Transaction Simulator) use Feign clients, manually forwarding the original `Authorization` header on every internal call.
 
-Authorization is enforced inside each microservice using Spring Security roles (`ROLE_ADMIN`, `ROLE_CLIENT`).
+---
+
 # CI Pipeline
 
 The project includes a Jenkins CI pipeline that performs:
@@ -580,6 +712,7 @@ Reports generated:
 - ✅ API Gateway
 - ✅ Microservices
 - ✅ Centralized Configuration
+- ✅ Keycloak Authentication & RBAC
 - ✅ Jenkins CI
 - ✅ SonarQube
 - ✅ OWASP Dependency Check
@@ -589,7 +722,6 @@ Reports generated:
 
 # Next Steps
 
-- Keycloak Authentication
 - Kafka Event Bus
 - Docker Compose
 - Kubernetes Deployment
