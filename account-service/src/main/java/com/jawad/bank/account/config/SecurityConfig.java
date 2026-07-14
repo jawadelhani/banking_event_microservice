@@ -20,7 +20,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/register",
                                 "/auth/login",
-                                "/actuator/**"
+                                "/actuator/**",
+                                "/clients/*/internal"
                         ).permitAll()
 
                         .anyRequest().authenticated()
