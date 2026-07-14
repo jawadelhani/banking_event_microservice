@@ -11,6 +11,7 @@ A banking system built using Spring Boot microservices following a cloud-native 
 - Agency Service
 - Notification Service
 - Transaction Simulator Service
+- AI Service (Kafka-driven card suggestion & fraud scoring)
 
 Technologies:
 
@@ -20,6 +21,8 @@ Technologies:
 - Eureka Discovery Server
 - Spring Cloud Config
 - PostgreSQL
+- Apache Kafka
+- Groq API — card tier suggestion & fraud explanation
 - Keycloak
 - Docker
 - Jenkins
@@ -34,7 +37,9 @@ Technologies:
 - Java 17+
 - Maven 3.9+
 - PostgreSQL
+- Apache Kafka (running on `localhost:9092`)
 - Keycloak (running on `localhost:8180`)
+- A Groq API key (see [Alibaba Cloud Model Studio](https://modelstudio.console.alibabacloud.com)) for AI Service
 - Git
 - IntelliJ IDEA (optional)
 
@@ -66,8 +71,24 @@ bank-config-repo
 ├── agency-service.yml
 ├── notification-service.yml
 ├── transaction-simulator-service.yml
+├── ai-service.yml
 ├── gateway-service.yml
 ```
+
+`ai-service.yml` must define the Groq client settings and Kafka connection, e.g.:
+
+```yaml
+Groq:
+  base-url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+  model: Groq-plus
+  api-key: ${Groq_API_KEY}
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+```
+
+`Groq_API_KEY` should be provided as an environment variable, never committed to the config repo.
 
 ---
 
@@ -80,6 +101,7 @@ CREATE DATABASE accounts;
 CREATE DATABASE agency;
 CREATE DATABASE notifications;
 CREATE DATABASE simulator;
+CREATE DATABASE ai;
 ```
 
 Update the database credentials inside the Config Repository if necessary.
@@ -136,7 +158,13 @@ http://localhost:8180
 
 ---
 
-## 4. API Gateway
+## 4. Kafka
+
+Start a local Kafka broker (e.g. via Docker Compose) on `localhost:9092`. AI Service consumes `TransactionCreatedEvent` and publishes `CardSuggestionEvent` / `FraudAnalysisEvent`, so Kafka must be up before it starts.
+
+---
+
+## 5. API Gateway
 
 Run:
 
@@ -152,7 +180,7 @@ http://localhost:9090
 
 ---
 
-## 5. Account Service
+## 6. Account Service
 
 Run:
 
@@ -164,7 +192,7 @@ Port: `8081`
 
 ---
 
-## 6. Agency Service
+## 7. Agency Service
 
 Run:
 
@@ -176,7 +204,7 @@ Port: `8083`
 
 ---
 
-## 7. Notification Service
+## 8. Notification Service
 
 Run:
 
@@ -188,7 +216,7 @@ Port: `8082`
 
 ---
 
-## 8. Transaction Simulator Service
+## 9. Transaction Simulator Service
 
 Run:
 
@@ -197,6 +225,20 @@ transaction-simulator-service
 ```
 
 Port: `8084`
+
+---
+
+## 10. AI Service
+
+Run:
+
+```
+ai-service
+```
+
+Port: `8086`
+
+Requires the `Groq_API_KEY` environment variable to be set for card suggestion and fraud-explanation calls to Groq. If the key is missing or the call fails, card suggestion falls back to static tier rules automatically; fraud scoring is fully rule-based and does not depend on Groq availability.
 
 ---
 
@@ -215,6 +257,7 @@ ACCOUNT-SERVICE
 AGENCY-SERVICE
 NOTIFICATION-SERVICE
 TRANSACTION-SIMULATOR-SERVICE
+AI-SERVICE
 CONFIG-SERVER
 GATEWAY-SERVICE
 ```
@@ -554,6 +597,45 @@ DELETE /transaction-simulator-service/transactions/{id}
 
 ---
 
+## 5. AI Service
+
+AI Service has no directly client-facing REST endpoints today — it's a Kafka consumer/producer that reacts to transaction activity:
+
+```
+TransactionCreatedEvent (Kafka)
+  ↓
+ai-service TransactionConsumer
+  ↓
+ScoringService
+  ├─ saves TransactionHistory (local read model)
+  ├─ computes weeklyAverage / transactionCount
+  ├─ calls Groq for card tier suggestion (falls back to static rules on failure)
+  ├─ publishes CardSuggestionEvent (Kafka)
+  │
+  └─ FraudScoringService
+        ├─ rule-based suspicion score (0–100): amount anomaly, velocity,
+        │   weekly deviation, time-of-day, round-number pattern
+        └─ publishes FraudAnalysisEvent (Kafka) when suspicious
+```
+
+To exercise it end-to-end, simulate a transaction and watch the resulting events:
+
+```
+POST http://localhost:9090/transaction-simulator-service/transactions/simulate
+```
+
+Header
+
+```
+Authorization: Bearer <ADMIN JWT>
+```
+
+Then check `ai-service` logs for the fraud score breakdown and the published `CardSuggestionEvent` / `FraudAnalysisEvent`.
+
+> **Note:** the fraud/card-suggestion decision itself is always rule-based and deterministic — Groq is only used to generate the card-suggestion message and (optionally) a human-readable fraud explanation, never to make the actual verdict. This keeps decisions auditable.
+
+---
+
 # Expected RBAC Behavior
 
 | Endpoint                                          | CLIENT | ADMIN |
@@ -568,6 +650,8 @@ DELETE /transaction-simulator-service/transactions/{id}
 | `GET /agency-service/alerts`                        | ❌ (403) | ✅ |
 | `GET /notification-service/notifications`           | ❌ (403) | ✅ |
 | `GET /transaction-simulator-service/transactions`    | ❌ (403) | ✅ |
+
+> AI Service currently has no exposed REST endpoints, so no RBAC rules apply to it directly — it only consumes/produces Kafka events triggered by authenticated Transaction Simulator Service calls.
 
 ---
 
@@ -666,22 +750,31 @@ POST http://localhost:9090/account-service/auth/login
                  | API Gateway   |
                  +-------+-------+
                          |
-     +-------------+-----+-----+-------------+
-     |             |           |             |
-     v             v           v             v
-Account       Agency      Notification   Transaction
-Service       Service     Service        Simulator
-  RBAC          RBAC        RBAC           RBAC
-     ^             |           |             |
-     |             |           |             |
+     +-------------+-----+-----+-------------+-------------+
+     |             |           |             |             |
+     v             v           v             v             v
+Account       Agency      Notification   Transaction     AI
+Service       Service     Service        Simulator      Service
+  RBAC          RBAC        RBAC           RBAC       (Kafka-only,
+     ^             |           |             |          no direct
+     |             |           |             |          JWT calls)
      +----- Feign calls to Account Service ---+
         (/clients/me, /accounts/me — same JWT
          forwarded on every internal call)
+
+Transaction Simulator Service
+     |
+     v (Kafka: TransactionCreatedEvent)
+AI Service
+     |
+     ├─→ CardSuggestionEvent (Kafka)
+     └─→ FraudAnalysisEvent (Kafka)
 ```
 
 - Each microservice independently validates the JWT against Keycloak using its own `issuer-uri` config — there is no central trust broker beyond Keycloak itself.
 - Authorization is enforced inside each microservice using Spring Security roles (`ROLE_ADMIN`, `ROLE_CLIENT`) via `@PreAuthorize`.
 - Services that need data from `account-service` (Agency, Notification, Transaction Simulator) use Feign clients, manually forwarding the original `Authorization` header on every internal call.
+- AI Service does not receive JWTs directly — it reacts to Kafka events published by Transaction Simulator Service, which are only emitted after that request has already passed RBAC/JWT validation upstream.
 
 ---
 
@@ -713,6 +806,8 @@ Reports generated:
 - ✅ Microservices
 - ✅ Centralized Configuration
 - ✅ Keycloak Authentication & RBAC
+- ✅ Kafka Event Bus (Transaction Simulator → AI Service)
+- ✅ AI Service — card tier suggestion (Groq) & rule-based fraud scoring
 - ✅ Jenkins CI
 - ✅ SonarQube
 - ✅ OWASP Dependency Check
@@ -722,7 +817,6 @@ Reports generated:
 
 # Next Steps
 
-- Kafka Event Bus
 - Docker Compose
 - Kubernetes Deployment
 - GitOps with ArgoCD
@@ -742,6 +836,7 @@ Banking-System
 ├── agency-service
 ├── notification-service
 ├── transaction-simulator-service
+├── ai-service
 ├── Jenkinsfile
 └── README.md
 ```
