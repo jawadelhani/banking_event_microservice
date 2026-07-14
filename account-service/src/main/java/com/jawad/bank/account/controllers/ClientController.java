@@ -78,6 +78,13 @@ public class ClientController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{id}/internal")
+    public ResponseEntity<ClientDto> getClientInternal(@PathVariable UUID id) {
+        return clientService.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/me")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ClientDto> me(
