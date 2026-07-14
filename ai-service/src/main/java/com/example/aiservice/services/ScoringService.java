@@ -1,34 +1,40 @@
 package com.example.aiservice.services;
 
-
-import com.example.aiservice.dtos.GroqVerdict;
-import com.example.aiservice.groq.GroqClient;
-import com.example.aiservice.messaging.FraudAnalysisProducer;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.aiservice.dtos.CardSuggestionVerdict;
 import com.example.aiservice.entities.TransactionHistory;
-import com.example.aiservice.events.FraudAnalysisEvent;
+import com.example.aiservice.events.CardSuggestionEvent;
 import com.example.aiservice.events.TransactionCreatedEvent;
+import com.example.aiservice.groq.GroqClient;
+import com.example.aiservice.messaging.CardSuggestionProducer;
 import com.example.aiservice.repositories.TransactionHistoryRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ScoringService {
 
+    private static final int WEEKLY_WINDOW_DAYS = 7;
+
     private final TransactionHistoryRepository historyRepository;
     private final GroqClient groqClient;
-    private final FraudAnalysisProducer producer;
+    private final CardSuggestionProducer producer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void handle(TransactionCreatedEvent event) {
+        if (event.getClientId() == null) {
+            log.warn("Skipping card suggestion — missing clientId for tx {}", event.getTransactionId());
+            return;
+        }
 
         TransactionHistory history = TransactionHistory.builder()
                 .transactionId(event.getTransactionId())
@@ -41,89 +47,77 @@ public class ScoringService {
 
         historyRepository.save(history);
 
-        List<TransactionHistory> recent =
-                historyRepository.findTop10ByClientIdOrderByCreatedAtDesc(event.getClientId());
+        BigDecimal weeklyAverage = computeWeeklyAverage(event.getClientId());
+        int transactionCount = countWeeklyTransactions(event.getClientId());
 
-        GroqVerdict verdict;
+        CardSuggestionVerdict verdict;
         try {
-            String summary = buildSummary(event, recent);
-            verdict = groqClient.analyze(summary);
+            String summary = buildSummary(event.getClientId(), weeklyAverage, transactionCount);
+            verdict = groqClient.suggestCardTier(summary);
         } catch (Exception e) {
-            log.warn("Groq call failed, falling back to Z-score for tx {}", event.getTransactionId(), e);
-            verdict = fallbackZScore(event, recent);
+            log.warn("Groq call failed, falling back to tier rules for tx {}", event.getTransactionId(), e);
+            verdict = fallbackTier(weeklyAverage);
         }
 
-        FraudAnalysisEvent result = FraudAnalysisEvent.builder()
+        CardSuggestionEvent result = CardSuggestionEvent.builder()
                 .transactionId(event.getTransactionId())
                 .accountId(event.getAccountId())
                 .clientId(event.getClientId())
                 .accountNumber(event.getAccountNumber())
-                .amount(event.getAmount())
-                .type(event.getType())
-                .createdAt(event.getCreatedAt())
-                .anomalyScore(verdict.getAnomalyScore())
-                .suspicious(verdict.isSuspicious())
-                .reason(verdict.getReason())
+                .weeklyAverage(weeklyAverage)
+                .suggestedCard(verdict.getSuggestedCard())
+                .message(verdict.getMessage())
+                .createdAt(LocalDateTime.now())
                 .build();
 
         producer.publish(result);
     }
 
-    private String buildSummary(TransactionCreatedEvent event, List<TransactionHistory> recent) {
+    private BigDecimal computeWeeklyAverage(UUID clientId) {
+        List<TransactionHistory> weekTransactions = loadWeeklyTransactions(clientId);
+
+        return weekTransactions.stream()
+                .filter(t -> "DEBIT".equals(t.getType()))
+                .map(t -> t.getAmount().abs())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private int countWeeklyTransactions(UUID clientId) {
+        return loadWeeklyTransactions(clientId).size();
+    }
+
+    private List<TransactionHistory> loadWeeklyTransactions(UUID clientId) {
+        LocalDateTime since = LocalDateTime.now().minusDays(WEEKLY_WINDOW_DAYS);
+        return historyRepository.findByClientIdAndCreatedAtAfter(clientId, since);
+    }
+
+    private String buildSummary(UUID clientId, BigDecimal weeklyAverage, int transactionCount) {
         try {
             var payload = Map.of(
-                    "currentTransaction", Map.of(
-                            "amount", event.getAmount(),
-                            "type", event.getType().name(),
-                            "hour", event.getCreatedAt().getHour(),
-                            "dayOfWeek", event.getCreatedAt().getDayOfWeek().toString()
-                    ),
-                    "recentHistory", recent.stream().map(t -> Map.of(
-                            "amount", t.getAmount(),
-                            "type", t.getType(),
-                            "createdAt", t.getCreatedAt().toString()
-                    )).toList()
+                    "clientId", clientId.toString(),
+                    "weeklyAverage", weeklyAverage,
+                    "transactionCount", transactionCount
             );
             return objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to build transaction summary", e);
+            throw new IllegalStateException("Failed to build spending summary", e);
         }
     }
 
-    private GroqVerdict fallbackZScore(TransactionCreatedEvent event, List<TransactionHistory> recent) {
-        GroqVerdict verdict = new GroqVerdict();
+    private CardSuggestionVerdict fallbackTier(BigDecimal weeklyAverage) {
+        CardSuggestionVerdict verdict = new CardSuggestionVerdict();
+        double avg = weeklyAverage.doubleValue();
 
-        if (recent.size() < 3) {
-            verdict.setAnomalyScore(0.0);
-            verdict.setSuspicious(false);
-            verdict.setReason("Not enough history for scoring");
-            return verdict;
+        if (avg < 1000) {
+            verdict.setSuggestedCard("STANDARD");
+            verdict.setMessage("Based on your recent spending, our Standard card is a great fit for you.");
+        } else if (avg <= 10000) {
+            verdict.setSuggestedCard("SILVER");
+            verdict.setMessage("Your weekly spending qualifies you for our Silver card with extra perks.");
+        } else {
+            verdict.setSuggestedCard("GOLD");
+            verdict.setMessage("Your spending level makes you eligible for our premium Gold card.");
         }
-
-        BigDecimal mean = recent.stream()
-                .map(t -> t.getAmount().abs())
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(recent.size()), 4, RoundingMode.HALF_UP);
-
-        double variance = recent.stream()
-                .mapToDouble(t -> {
-                    double diff = t.getAmount().abs().doubleValue() - mean.doubleValue();
-                    return diff * diff;
-                })
-                .average()
-                .orElse(0.0);
-
-        double stddev = Math.sqrt(variance);
-        double amount = event.getAmount().abs().doubleValue();
-
-        double z = stddev == 0 ? 0 : (amount - mean.doubleValue()) / stddev;
-        double absZ = Math.abs(z);
-
-        verdict.setAnomalyScore(Math.min(absZ / 5.0, 1.0));
-        verdict.setSuspicious(absZ >= 3);
-        verdict.setReason(absZ >= 3
-                ? "Amount deviates significantly from client's usual pattern (z=" + String.format("%.2f", z) + ")"
-                : "Within normal range");
 
         return verdict;
     }

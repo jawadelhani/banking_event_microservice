@@ -1,7 +1,17 @@
 server:
-  port: 8085
+  port: 8086
 
 spring:
+  application:
+    name: ai-service
+  config:
+    import: "optional:configserver:http://localhost:8888"
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+
   datasource:
     url: jdbc:postgresql://localhost:5432/ai
     username: postgres

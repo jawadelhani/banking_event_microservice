@@ -1,9 +1,9 @@
 package com.example.aiservice.groq;
 
 import com.example.aiservice.config.GroqProperties;
+import com.example.aiservice.dtos.CardSuggestionVerdict;
 import com.example.aiservice.dtos.ChatRequest;
 import com.example.aiservice.dtos.ChatResponse;
-import com.example.aiservice.dtos.GroqVerdict;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ public class GroqClient {
 
     private static final Pattern JSON_PATTERN = Pattern.compile("\\{.*\\}", Pattern.DOTALL);
 
-    public GroqVerdict analyze(String transactionSummary) {
+    public CardSuggestionVerdict suggestCardTier(String spendingSummary) {
 
         String systemPrompt = """
             You are a banking assistant that suggests a card tier based on a client's
@@ -44,7 +44,7 @@ public class GroqClient {
                 .temperature(0.0)
                 .messages(List.of(
                         new ChatRequest.Message("system", systemPrompt),
-                        new ChatRequest.Message("user", transactionSummary)
+                        new ChatRequest.Message("user", spendingSummary)
                 ))
                 .build();
 
@@ -59,14 +59,14 @@ public class GroqClient {
         return parseVerdict(raw);
     }
 
-    private GroqVerdict parseVerdict(String raw) {
+    private CardSuggestionVerdict parseVerdict(String raw) {
         try {
             Matcher matcher = JSON_PATTERN.matcher(raw);
             String json = matcher.find() ? matcher.group() : raw;
-            return objectMapper.readValue(json, GroqVerdict.class);
+            return objectMapper.readValue(json, CardSuggestionVerdict.class);
         } catch (Exception e) {
-            log.warn("Failed to parse Qwen response, raw content: {}", raw, e);
-            throw new IllegalStateException("Unparseable Qwen response", e);
+            log.warn("Failed to parse Groq response, raw content: {}", raw, e);
+            throw new IllegalStateException("Unparseable Groq response", e);
         }
     }
 }
