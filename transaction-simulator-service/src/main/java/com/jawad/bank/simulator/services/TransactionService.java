@@ -1,12 +1,13 @@
 package com.jawad.bank.simulator.services;
 
+import com.jawad.bank.simulator.clients.AccountClient;
 import com.jawad.bank.simulator.config.SimulatorProperties;
-import com.jawad.bank.simulator.dtos.CreateTransactionRequest;
-import com.jawad.bank.simulator.dtos.SimulateTransactionsRequest;
-import com.jawad.bank.simulator.dtos.TransactionDto;
+import com.jawad.bank.simulator.dtos.*;
 import com.jawad.bank.simulator.entities.Transaction;
 import com.jawad.bank.simulator.entities.TransactionType;
+import com.jawad.bank.simulator.events.TransactionCreatedEvent;
 import com.jawad.bank.simulator.mappers.TransactionMapper;
+import com.jawad.bank.simulator.messaging.TransactionProducer;
 import com.jawad.bank.simulator.repositories.TransactionRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,9 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final TransactionMapper transactionMapper;
     private final SimulatorProperties simulatorProperties;
+    private final TransactionProducer transactionProducer;
+    private final AccountClient accountClient;
+
     private final Random random = new Random();
 
     public List<TransactionDto> findAll() {
@@ -48,10 +52,34 @@ public class TransactionService {
     }
 
     @Transactional
-    public TransactionDto create(CreateTransactionRequest request) {
+    public TransactionDto create(CreateTransactionRequest request, String authHeader) {
         Transaction transaction = transactionMapper.toEntity(request);
-        transaction.setAmount(signedAmount(request.getAmount(), request.getType()));
-        return transactionMapper.toDto(transactionRepository.save(transaction));
+        BigDecimal signedAmount = signedAmount(request.getAmount(), request.getType());
+        transaction.setAmount(signedAmount);
+
+        Transaction saved = transactionRepository.save(transaction);
+
+        // Apply the balance change on account-service
+        AccountDto account = accountClient.adjustBalance(
+                saved.getAccountId(),
+                new BalanceAdjustmentRequest(signedAmount),
+                authHeader
+        );
+
+        // Build and publish the full event with clientId/accountNumber populated
+        TransactionCreatedEvent event = TransactionCreatedEvent.builder()
+                .transactionId(saved.getId())
+                .accountId(saved.getAccountId())
+                .clientId(account.getClientId())
+                .accountNumber(account.getAccountNumber())
+                .amount(saved.getAmount())
+                .type(saved.getType())
+                .createdAt(saved.getCreatedAt())
+                .build();
+
+        transactionProducer.publish(event);
+
+        return transactionMapper.toDto(saved);
     }
 
     /**
@@ -77,7 +105,19 @@ public class TransactionService {
                     .amount(signedAmount(amount, type))
                     .build();
 
-            generated.add(transactionRepository.save(transaction));
+            Transaction saved = transactionRepository.save(transaction);
+
+            generated.add(saved);
+
+            TransactionCreatedEvent event = TransactionCreatedEvent.builder()
+                    .transactionId(saved.getId())
+                    .accountId(saved.getAccountId())
+                    .amount(saved.getAmount())
+                    .type(saved.getType())
+                    .createdAt(saved.getCreatedAt())
+                    .build();
+
+            transactionProducer.publish(event);
         }
 
         return generated.stream().map(transactionMapper::toDto).toList();

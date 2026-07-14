@@ -51,9 +51,10 @@ public class TransactionController {
     @PostMapping
     public ResponseEntity<TransactionDto> createTransaction(
             @Valid @RequestBody CreateTransactionRequest request,
+            @AuthenticationPrincipal Jwt jwt,
             UriComponentsBuilder uriBuilder) {
 
-        var dto = transactionService.create(request);
+        var dto = transactionService.create(request, "Bearer " + jwt.getTokenValue());
         var uri = uriBuilder.path("/transactions/{id}")
                 .buildAndExpand(dto.getId())
                 .toUri();
