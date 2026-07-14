@@ -24,6 +24,8 @@ public class CreateClientRequest {
 
     private String phone;
 
+    private Boolean allowNotifications;
+
     @NotNull
     private BigDecimal monthlyIncome;
 }
