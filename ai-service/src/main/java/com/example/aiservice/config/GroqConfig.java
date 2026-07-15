@@ -11,7 +11,7 @@ import org.springframework.web.client.RestClient;
 public class GroqConfig {
 
     @Bean
-    public RestClient qwenRestClient(GroqProperties properties) {
+    public RestClient groqRestClient(GroqProperties properties) {
         return RestClient.builder()
                 .baseUrl(properties.getBaseUrl())
                 .defaultHeader("Authorization", "Bearer " + properties.getApiKey())

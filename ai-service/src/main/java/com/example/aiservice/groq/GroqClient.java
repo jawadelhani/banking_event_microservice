@@ -19,13 +19,17 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class GroqClient {
 
-    private final RestClient qwenRestClient;
+    private final RestClient groqRestClient;
     private final GroqProperties properties;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Pattern JSON_PATTERN = Pattern.compile("\\{.*\\}", Pattern.DOTALL);
 
     public CardSuggestionVerdict suggestCardTier(String spendingSummary) {
+        log.info("Calling Groq at {} with model {}, key length={}",
+                properties.getBaseUrl(), properties.getModel(),
+                properties.getApiKey() == null ? "null" : properties.getApiKey().length());
+
 
         String systemPrompt = """
             You are a banking assistant that suggests a card tier based on a client's
@@ -48,7 +52,7 @@ public class GroqClient {
                 ))
                 .build();
 
-        ChatResponse response = qwenRestClient.post()
+        ChatResponse response = groqRestClient.post()
                 .uri("/chat/completions")
                 .body(request)
                 .retrieve()
