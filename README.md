@@ -798,6 +798,105 @@ Reports generated:
 
 ---
 
+# Frontend Application
+
+## 📱 Al Barid Bank Angular Frontend
+
+A modern, responsive Angular 17 frontend application that connects to the microservices system. Features role-based dashboards for Admin and Client users with JWT authentication.
+
+### Quick Start
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Navigate to `http://localhost:4200`. The app will auto-reload on source changes.
+
+### Features
+
+- **JWT Authentication**: Secure login/register with Keycloak
+- **Admin Dashboard**: View all clients, accounts, alerts, notifications, and transactions
+- **Client Dashboard**: Personal profile, accounts, alerts, notifications, and transaction history
+- **Responsive Design**: Mobile, tablet, and desktop optimized
+- **Yellow Theme**: Al Barid Bank brand colors with professional UI
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+Output: `dist/frontend/`
+
+### Project Structure
+
+```
+frontend/
+├── src/
+│   ├── app/
+│   │   ├── auth/
+│   │   │   ├── login/        # Login page
+│   │   │   └── register/     # Registration page
+│   │   ├── dashboards/
+│   │   │   ├── admin/        # Admin dashboard
+│   │   │   └── client/       # Client dashboard
+│   │   ├── services/
+│   │   │   ├── auth.service.ts      # JWT auth
+│   │   │   └── api.service.ts       # API integration
+│   │   ├── guards/
+│   │   │   └── auth.guard.ts        # Role-based routing
+│   │   ├── interceptors/
+│   │   │   └── auth.interceptor.ts  # Bearer token injection
+│   │   ├── models/
+│   │   │   └── banking.models.ts    # TypeScript interfaces
+│   │   └── app.routes.ts            # Route definitions
+│   ├── proxy.conf.json      # API Gateway proxy config
+│   └── styles.css           # Global theme
+├── angular.json             # Angular config
+└── package.json             # Dependencies
+```
+
+### API Configuration
+
+All frontend requests proxy to the API Gateway at `http://localhost:9090`:
+
+- `/account-service` → Account & Auth
+- `/agency-service` → Agency Alerts
+- `/notification-service` → Notifications
+- `/transaction-simulator-service` → Transactions
+
+Proxy configuration: `src/proxy.conf.json`
+
+### User Roles & Routes
+
+| Role | Dashboard | Access |
+|------|-----------|--------|
+| **ADMIN** | `/admin` | All clients, accounts, alerts, notifications, transactions |
+| **CLIENT** | `/client` | Personal profile, accounts, alerts, notifications, transactions |
+| **Guest** | `/login` | Only login and register pages |
+
+### Example Test Workflow
+
+1. **Start Backend Services**: Ensure API Gateway is running at `http://localhost:9090`
+2. **Start Frontend**: `npm start` at `http://localhost:4200`
+3. **Register New User**: Fill registration form
+4. **Login**: Use credentials to login
+5. **View Dashboard**: See role-appropriate data (admin or client)
+
+### Troubleshooting
+
+- **Cannot connect to API**: Ensure API Gateway runs at `http://localhost:9090`
+- **Blank page**: Check browser console for errors, verify proxy config
+- **Auth token issues**: Clear localStorage, logout and login again
+
+### More Information
+
+See `frontend/README.md` for comprehensive documentation, development commands, theme customization, and security details.
+
+---
+
 # Current Project Status
 
 - ✅ Eureka Server
@@ -812,6 +911,7 @@ Reports generated:
 - ✅ SonarQube
 - ✅ OWASP Dependency Check
 - ✅ Trivy
+- ✅ **Frontend Angular Application** (Admin & Client Dashboards)
 
 ---
 
@@ -837,7 +937,10 @@ Banking-System
 ├── notification-service
 ├── transaction-simulator-service
 ├── ai-service
+├── frontend (Angular 17 Application)
+├── jenkins
 ├── Jenkinsfile
+├── docker-compose.yml
 └── README.md
 ```
 
