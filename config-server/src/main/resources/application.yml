@@ -4,23 +4,18 @@ server:
 spring:
   application:
     name: config-server
-
   profiles:
     active: git
-
   cloud:
     config:
       server:
+        default-label: main
         git:
           uri: https://github.com/jawadelhani/banking-config
+          default-label: main
+          clone-on-start: true
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
