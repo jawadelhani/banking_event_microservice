@@ -27,7 +27,14 @@ public class AgencyAlert {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    private AlertType type;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Criticality criticality;
+
+    @Column(length = 500)
+    private String message;
 
     @Column(name = "seen_by_agent", nullable = false)
     @Builder.Default
