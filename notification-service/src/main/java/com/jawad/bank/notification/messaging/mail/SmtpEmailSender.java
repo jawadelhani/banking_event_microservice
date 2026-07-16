@@ -23,4 +23,3 @@ public class SmtpEmailSender implements EmailSender {
         log.info("Email sent to {}", to);
     }
 }
- 
