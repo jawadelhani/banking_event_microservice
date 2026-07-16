@@ -1,5 +1,18 @@
 spring:
   application:
     name: transaction-simulator-service
+
   config:
-    import: "configserver:http://localhost:8888"
+    import: "configserver:http://localhost:8888,vault://"
+
+  cloud:
+    config:
+      label: main
+
+    vault:
+      uri: http://localhost:8200
+      token: root
+      kv:
+        enabled: true
+        backend: secret
+        default-context: banking
