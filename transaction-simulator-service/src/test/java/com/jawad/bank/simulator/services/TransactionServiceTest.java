@@ -1,12 +1,15 @@
 package com.jawad.bank.simulator.services;
 
+import com.jawad.bank.simulator.clients.AccountClient;
 import com.jawad.bank.simulator.config.SimulatorProperties;
+import com.jawad.bank.simulator.dtos.AccountDto;
 import com.jawad.bank.simulator.dtos.CreateTransactionRequest;
 import com.jawad.bank.simulator.dtos.SimulateTransactionsRequest;
 import com.jawad.bank.simulator.dtos.TransactionDto;
 import com.jawad.bank.simulator.entities.Transaction;
 import com.jawad.bank.simulator.entities.TransactionType;
 import com.jawad.bank.simulator.mappers.TransactionMapper;
+import com.jawad.bank.simulator.messaging.TransactionProducer;
 import com.jawad.bank.simulator.repositories.TransactionRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,6 +38,12 @@ class TransactionServiceTest {
 
     @Mock
     private SimulatorProperties simulatorProperties;
+
+    @Mock
+    private TransactionProducer transactionProducer;
+
+    @Mock
+    private AccountClient accountClient;
 
     @InjectMocks
     private TransactionService transactionService;
@@ -71,15 +81,28 @@ class TransactionServiceTest {
         request.setAmount(BigDecimal.valueOf(100));
         request.setType(TransactionType.CREDIT);
 
+        UUID accountId = UUID.randomUUID();
+        UUID clientId = UUID.randomUUID();
+
         Transaction transaction = new Transaction();
+        transaction.setAccountId(accountId);
         transaction.setType(TransactionType.CREDIT);
+
         TransactionDto dto = new TransactionDto();
+
+        AccountDto accountDto = new AccountDto();
+        accountDto.setClientId(clientId);
+        accountDto.setAccountNumber("ACC-TEST-001");
+
+        String authHeader = "Bearer test-token";
 
         when(transactionMapper.toEntity(request)).thenReturn(transaction);
         when(transactionRepository.save(transaction)).thenReturn(transaction);
+        when(accountClient.adjustBalance(eq(accountId), any(), eq(authHeader)))
+                .thenReturn(accountDto);
         when(transactionMapper.toDto(transaction)).thenReturn(dto);
 
-        TransactionDto result = transactionService.create(request);
+        TransactionDto result = transactionService.create(request, authHeader);
 
         assertNotNull(result);
     }
