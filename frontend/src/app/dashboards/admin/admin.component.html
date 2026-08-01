@@ -1,0 +1,285 @@
+<div class="dashboard">
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/al-barid-logo.png" alt="Al Barid Bank" />
+      <div>
+        <strong>Al Barid Bank</strong>
+        <span>Admin Portal</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="role-badge">ADMIN</span>
+      <button class="btn btn-secondary" (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main class="dashboard-content container">
+    <section class="hero card">
+      <div>
+        <h1>Operations Dashboard</h1>
+        <p>Monitor clients, accounts, agency alerts, notifications, and transactions.</p>
+      </div>
+      <button class="btn btn-primary" (click)="loadAll()" [disabled]="loading">Refresh</button>
+    </section>
+
+    <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+    <div class="alert alert-success" *ngIf="successMessage">{{ successMessage }}</div>
+
+    <nav class="tabs">
+      <button
+        *ngFor="let tab of tabs"
+        class="tab"
+        [class.active]="activeTab === tab.id"
+        (click)="selectTab(tab.id)">
+        {{ tab.label }}
+        <span class="tab-count">{{ tab.count }}</span>
+      </button>
+    </nav>
+
+    <section class="card table-card" *ngIf="loading">
+      <p class="muted">Loading data...</p>
+    </section>
+
+    <section class="card table-card fade-in" *ngIf="!loading && activeTab === 'clients'">
+      <h2>All Clients</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Full Name</th>
+              <th>CIN</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let client of clients">
+              <td>{{ client.fullName }}</td>
+              <td>{{ client.cin }}</td>
+              <td>{{ client.email }}</td>
+              <td>{{ client.phone || '—' }}</td>
+              <td>{{ formatDate(client.createdAt) }}</td>
+            </tr>
+            <tr *ngIf="clients.length === 0">
+              <td colspan="5" class="empty">No clients found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card table-card fade-in" *ngIf="!loading && activeTab === 'accounts'">
+      <div class="section-header">
+        <h2>All Accounts</h2>
+        <button class="btn btn-primary" (click)="openCreateAccountModal()">+ Add Account</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Account Number</th>
+              <th>Client ID</th>
+              <th>Balance</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let account of accounts">
+              <td><strong>{{ account.accountNumber }}</strong></td>
+              <td class="mono">{{ account.clientId }}</td>
+              <td><strong>{{ formatAmount(account.balance) }}</strong></td>
+              <td><span class="badge">{{ account.accountType }}</span></td>
+              <td><span class="badge badge-muted">{{ account.status }}</span></td>
+              <td class="actions">
+                <button class="btn btn-sm btn-primary" (click)="openUpdateAccountModal(account)" title="Edit balance/status">Edit</button>
+                <button class="btn btn-sm btn-danger" (click)="deleteAccount(account.id, account.accountNumber)" [disabled]="deleteOperating[account.id]" title="Delete account">
+                  {{ deleteOperating[account.id] ? 'Deleting...' : 'Delete' }}
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="accounts.length === 0">
+              <td colspan="6" class="empty">No accounts found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CREATE ACCOUNT MODAL -->
+    <div class="modal-overlay" *ngIf="showCreateAccountModal" (click)="closeCreateAccountModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Create New Account</h3>
+          <button class="modal-close" (click)="closeCreateAccountModal()">&times;</button>
+        </div>
+        <form [formGroup]="createAccountForm" (ngSubmit)="createAccount()">
+          <div class="form-group">
+            <label class="form-label" for="clientId">Client ID</label>
+            <select id="clientId" class="form-control" formControlName="clientId">
+              <option value="">-- Select Client --</option>
+              <option *ngFor="let client of clients" [value]="client.id">
+                {{ client.fullName }} ({{ client.cin }})
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="accountNumber">Account Number</label>
+            <input id="accountNumber" type="text" class="form-control" formControlName="accountNumber" placeholder="e.g., ACC-001-2024" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="accountType">Account Type</label>
+            <select id="accountType" class="form-control" formControlName="accountType">
+              <option *ngFor="let type of accountTypes" [value]="type">{{ type }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="balance">Initial Balance (MAD)</label>
+            <input id="balance" type="number" class="form-control" formControlName="balance" placeholder="0.00" />
+          </div>
+
+          <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeCreateAccountModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="createOperating">
+              {{ createOperating ? 'Creating...' : 'Create Account' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- UPDATE ACCOUNT MODAL -->
+    <div class="modal-overlay" *ngIf="showUpdateAccountModal && selectedAccount" (click)="closeUpdateAccountModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Update Account {{ selectedAccount.accountNumber }}</h3>
+          <button class="modal-close" (click)="closeUpdateAccountModal()">&times;</button>
+        </div>
+        <form [formGroup]="updateAccountForm" (ngSubmit)="updateAccount()">
+          <div class="form-group">
+            <label class="form-label">Account Number</label>
+            <input type="text" class="form-control" [value]="selectedAccount.accountNumber" disabled />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Current Balance</label>
+            <input type="text" class="form-control" [value]="formatAmount(selectedAccount.balance)" disabled />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newBalance">New Balance (MAD)</label>
+            <input id="newBalance" type="number" class="form-control" formControlName="balance" placeholder="0.00" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="status">Status</label>
+            <select id="status" class="form-control" formControlName="status">
+              <option *ngFor="let status of accountStatuses" [value]="status">{{ status }}</option>
+            </select>
+          </div>
+
+          <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeUpdateAccountModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" [disabled]="updateOperating">
+              {{ updateOperating ? 'Updating...' : 'Update Account' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <section class="card table-card fade-in" *ngIf="!loading && activeTab === 'alerts'">
+      <h2>Agency Alerts</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Client ID</th>
+              <th>Transaction ID</th>
+              <th>Criticality</th>
+              <th>Seen</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let alert of alerts">
+              <td class="mono">{{ alert.clientId }}</td>
+              <td class="mono">{{ alert.txId || '—' }}</td>
+              <td><span class="badge" [class.badge-danger]="alert.criticality === 'HIGH'">{{ alert.criticality }}</span></td>
+              <td>{{ alert.seenByAgent ? 'Yes' : 'No' }}</td>
+              <td>{{ formatDate(alert.createdAt) }}</td>
+            </tr>
+            <tr *ngIf="alerts.length === 0">
+              <td colspan="5" class="empty">No alerts found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card table-card fade-in" *ngIf="!loading && activeTab === 'notifications'">
+      <h2>All Notifications</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Client ID</th>
+              <th>Channel</th>
+              <th>Message</th>
+              <th>Status</th>
+              <th>Sent At</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let notification of notifications">
+              <td class="mono">{{ notification.clientId }}</td>
+              <td><span class="badge">{{ notification.channel }}</span></td>
+              <td>{{ notification.message }}</td>
+              <td><span class="badge badge-muted">{{ notification.status }}</span></td>
+              <td>{{ formatDate(notification.sentAt) }}</td>
+            </tr>
+            <tr *ngIf="notifications.length === 0">
+              <td colspan="5" class="empty">No notifications found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card table-card fade-in" *ngIf="!loading && activeTab === 'transactions'">
+      <h2>All Transactions</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Account ID</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of transactions">
+              <td class="mono">{{ tx.accountId }}</td>
+              <td><span class="badge" [class.badge-success]="tx.type === 'CREDIT'">{{ tx.type }}</span></td>
+              <td [class.text-success]="tx.amount > 0" [class.text-danger]="tx.amount < 0">{{ formatAmount(tx.amount) }}</td>
+              <td>{{ formatDate(tx.createdAt) }}</td>
+            </tr>
+            <tr *ngIf="transactions.length === 0">
+              <td colspan="4" class="empty">No transactions found.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>

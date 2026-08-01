@@ -2,6 +2,7 @@ package com.jawad.bank.account.services;
 
 import com.jawad.bank.account.dtos.LoginRequest;
 import com.jawad.bank.account.dtos.LoginResponse;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -30,11 +31,16 @@ public class AuthenticationService {
     @Value("${keycloak.client-secret}")
     private String clientSecret;
 
+    @PostConstruct
+    public void debug() {
+        System.out.println("clientId = " + clientId);
+        System.out.println("clientSecret = " + clientSecret);
+    }
+
     public LoginResponse login(LoginRequest request) {
 
         String body = "grant_type=password"
                 + "&client_id=" + encode(clientId)
-                + "&client_secret=" + encode(clientSecret)
                 + "&username=" + encode(request.getUsername())
                 + "&password=" + encode(request.getPassword());
 

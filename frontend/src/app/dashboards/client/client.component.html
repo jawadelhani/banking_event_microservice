@@ -1,0 +1,117 @@
+<div class="dashboard">
+  <header class="topbar">
+    <div class="brand">
+      <img src="assets/al-barid-logo.png" alt="Al Barid Bank" />
+      <div>
+        <strong>Al Barid Bank</strong>
+        <span>Client Portal</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <span class="role-badge">CLIENT</span>
+      <button class="btn btn-secondary" (click)="logout()">Logout</button>
+    </div>
+  </header>
+
+  <main class="dashboard-content container">
+    <section class="hero card" *ngIf="profile">
+      <div>
+        <h1>Hello, {{ profile.fullName }}</h1>
+        <p>Manage your accounts, alerts, notifications, and transactions.</p>
+      </div>
+      <div class="balance-card">
+        <span>Total Balance</span>
+        <strong>{{ formatAmount(totalBalance()) }}</strong>
+      </div>
+    </section>
+
+    <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+    <p class="muted" *ngIf="loading">Loading your dashboard...</p>
+
+    <div class="grid" *ngIf="!loading">
+      <section class="card fade-in">
+        <h2>My Profile</h2>
+        <div class="info-list" *ngIf="profile">
+          <div><span>CIN</span><strong>{{ profile.cin }}</strong></div>
+          <div><span>Email</span><strong>{{ profile.email }}</strong></div>
+          <div><span>Phone</span><strong>{{ profile.phone || '—' }}</strong></div>
+          <div><span>Member since</span><strong>{{ formatDate(profile.createdAt) }}</strong></div>
+        </div>
+      </section>
+
+      <section class="card fade-in">
+        <h2>My Accounts</h2>
+        <div class="stack">
+          <article class="mini-card" *ngFor="let account of accounts">
+            <div>
+              <strong>{{ account.accountNumber }}</strong>
+              <p>{{ account.accountType }} · {{ account.status }}</p>
+            </div>
+            <span class="amount">{{ formatAmount(account.balance) }}</span>
+          </article>
+          <p class="empty" *ngIf="accounts.length === 0">No accounts yet.</p>
+        </div>
+      </section>
+
+      <section class="card fade-in">
+        <h2>My Alerts</h2>
+        <div class="stack">
+          <article class="mini-card" *ngFor="let alert of alerts">
+            <div>
+              <strong>{{ alert.criticality }} alert</strong>
+              <p>{{ formatDate(alert.createdAt) }}</p>
+            </div>
+            <span class="badge" [class.badge-danger]="alert.criticality === 'HIGH'">
+              {{ alert.seenByAgent ? 'Seen' : 'New' }}
+            </span>
+          </article>
+          <p class="empty" *ngIf="alerts.length === 0">No alerts for your account.</p>
+        </div>
+      </section>
+
+      <section class="card fade-in">
+        <h2>My Notifications</h2>
+        <div class="stack">
+          <article class="mini-card" *ngFor="let notification of notifications">
+            <div>
+              <strong>{{ notification.channel }}</strong>
+              <p>{{ notification.message }}</p>
+            </div>
+            <span class="badge badge-muted">{{ notification.status }}</span>
+          </article>
+          <p class="empty" *ngIf="notifications.length === 0">No notifications yet.</p>
+        </div>
+      </section>
+
+      <section class="card full-width fade-in">
+        <div class="section-header">
+          <h2>My Transactions</h2>
+          <button class="btn btn-primary" (click)="loadData()">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let tx of transactions">
+                <td class="mono">{{ tx.accountId }}</td>
+                <td><span class="badge" [class.badge-success]="tx.type === 'CREDIT'">{{ tx.type }}</span></td>
+                <td [class.text-success]="tx.amount > 0" [class.text-danger]="tx.amount < 0">{{ formatAmount(tx.amount) }}</td>
+                <td>{{ formatDate(tx.createdAt) }}</td>
+              </tr>
+              <tr *ngIf="transactions.length === 0">
+                <td colspan="4" class="empty">No transactions yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>

@@ -1,0 +1,22 @@
+{
+  "/account-service": {
+    "target": "http://localhost:9090",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/agency-service": {
+    "target": "http://localhost:9090",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/notification-service": {
+    "target": "http://localhost:9090",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/transaction-simulator-service": {
+    "target": "http://localhost:9090",
+    "secure": false,
+    "changeOrigin": true
+  }
+}

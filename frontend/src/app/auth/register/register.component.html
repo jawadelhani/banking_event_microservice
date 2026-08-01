@@ -1,0 +1,65 @@
+<div class="auth-page">
+  <div class="auth-card card">
+    <div class="auth-header">
+      <img src="assets/al-barid-logo.png" alt="Al Barid Bank" class="logo" />
+      <h1>Create account</h1>
+      <p>Join Al Barid Bank in a few steps</p>
+    </div>
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="auth-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="firstName">First name</label>
+          <input id="firstName" type="text" class="form-control" formControlName="firstName" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="lastName">Last name</label>
+          <input id="lastName" type="text" class="form-control" formControlName="lastName" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input id="username" type="text" class="form-control" formControlName="username" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input id="password" type="password" class="form-control" formControlName="password" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="cin">CIN</label>
+        <input id="cin" type="text" class="form-control" formControlName="cin" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email</label>
+        <input id="email" type="email" class="form-control" formControlName="email" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="phone">Phone</label>
+          <input id="phone" type="text" class="form-control" formControlName="phone" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="address">Address</label>
+          <input id="address" type="text" class="form-control" formControlName="address" />
+        </div>
+      </div>
+
+      <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+      <div class="alert alert-success" *ngIf="successMessage">{{ successMessage }}</div>
+
+      <button type="submit" class="btn btn-primary btn-block" [disabled]="loading">
+        {{ loading ? 'Creating account...' : 'Sign Up' }}
+      </button>
+    </form>
+
+    <p class="auth-footer">
+      Already have an account?
+      <a routerLink="/login">Sign in</a>
+    </p>
+  </div>
+</div>
