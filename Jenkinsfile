@@ -53,7 +53,7 @@ pipeline {
                         for (service in env.SERVICES.split()) {
                             dir(service) {
                                 sh """
-                                    mvn sonar:sonar \
+                                    mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar \
                                     -Dsonar.projectKey=${service} \
                                     -Dsonar.projectName=${service}
                                 """
