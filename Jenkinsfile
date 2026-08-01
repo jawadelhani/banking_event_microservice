@@ -79,12 +79,11 @@ pipeline {
                             dir(service) {
 
                                sh '''
-                                   mvn org.owasp:dependency-check-maven:9.2.0:check \
+                                   mvn org.owasp:dependency-check-maven:12.2.2:check \
                                        -DnvdApiKey=$NVD_API_KEY \
                                        -DdataDirectory=/var/jenkins_home/owasp-dc-data \
                                        -Danalyzer.assembly.enabled=false \
-                                       -DnvdApiDelay=6000 \
-                                       -DnvdApiResultsPerPage=1000
+                                       -DnvdApiDelay=6000
                                '''
 
                             }
