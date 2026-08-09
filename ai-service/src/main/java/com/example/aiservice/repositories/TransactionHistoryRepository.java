@@ -10,4 +10,5 @@ import java.util.UUID;
 public interface TransactionHistoryRepository extends JpaRepository<TransactionHistory, UUID> {
     List<TransactionHistory> findTop10ByClientIdOrderByCreatedAtDesc(UUID clientId);
     List<TransactionHistory> findByClientIdAndCreatedAtAfter(UUID clientId, LocalDateTime since);
+    List<TransactionHistory> findByClientId(UUID clientId);
 }

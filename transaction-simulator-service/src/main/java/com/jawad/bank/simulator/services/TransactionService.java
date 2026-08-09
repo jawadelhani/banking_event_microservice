@@ -90,7 +90,7 @@ public class TransactionService {
      * 4. Persists the movement locally (Kafka publish comes in a later sprint)
      */
     @Transactional
-    public List<TransactionDto> simulate(SimulateTransactionsRequest request) {
+    public List<TransactionDto> simulate(SimulateTransactionsRequest request, String authHeader) {
         List<UUID> accountIds = request.getAccountIds();
         ArrayList<Transaction> generated = new ArrayList<Transaction>();
 
@@ -109,9 +109,13 @@ public class TransactionService {
 
             generated.add(saved);
 
+            AccountDto account = accountClient.getAccount(accountId, authHeader);
+
             TransactionCreatedEvent event = TransactionCreatedEvent.builder()
                     .transactionId(saved.getId())
                     .accountId(saved.getAccountId())
+                    .clientId(account.getClientId())
+                    .accountNumber(account.getAccountNumber())
                     .amount(saved.getAmount())
                     .type(saved.getType())
                     .createdAt(saved.getCreatedAt())

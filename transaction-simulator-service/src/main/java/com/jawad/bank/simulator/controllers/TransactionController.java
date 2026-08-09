@@ -65,9 +65,10 @@ public class TransactionController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/simulate")
     public Iterable<TransactionDto> simulateTransactions(
-            @Valid @RequestBody SimulateTransactionsRequest request) {
+            @Valid @RequestBody SimulateTransactionsRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
 
-        return transactionService.simulate(request);
+        return transactionService.simulate(request, "Bearer " + jwt.getTokenValue());
     }
 
     @PreAuthorize("hasRole('ADMIN')")
