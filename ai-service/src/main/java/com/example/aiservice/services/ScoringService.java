@@ -5,7 +5,9 @@ import com.example.aiservice.entities.TransactionHistory;
 import com.example.aiservice.events.CardSuggestionEvent;
 import com.example.aiservice.events.TransactionCreatedEvent;
 import com.example.aiservice.groq.GroqClient;
+import com.example.aiservice.events.FraudAnalysisEvent;
 import com.example.aiservice.messaging.CardSuggestionProducer;
+import com.example.aiservice.messaging.FraudAlertProducer;
 import com.example.aiservice.repositories.TransactionHistoryRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,8 @@ public class ScoringService {
     private final TransactionHistoryRepository historyRepository;
     private final GroqClient groqClient;
     private final CardSuggestionProducer producer;
+    private final FraudScoringService fraudScoringService;
+    private final FraudAlertProducer fraudAlertProducer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void handle(TransactionCreatedEvent event) {
@@ -71,6 +75,11 @@ public class ScoringService {
                 .build();
 
         producer.publish(result);
+
+        FraudAnalysisEvent fraudEvent = fraudScoringService.analyze(event);
+        if (fraudEvent.isSuspicious()) {
+            fraudAlertProducer.publish(fraudEvent);
+        }
     }
 
     private BigDecimal computeWeeklyAverage(UUID clientId) {
