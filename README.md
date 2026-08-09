@@ -637,24 +637,24 @@ The AI Service uses the **Z-Score anomaly detection** algorithm to identify susp
 
 > **Note:** To ensure statistical precision, the Z-Score is **not calculated** until a user has at least **10 past transactions** in their history. Before this threshold, the system allows the user to establish their baseline.
 
-#### The Math (Operations Example)
-**1. Calculate the Mean (Average) of the Baseline**
-The AI Service looks at your past 5 transactions (assuming the threshold was met): `[500, 500, 500, 500, 500]`
-- `Sum = 500 + 500 + 500 + 500 + 500 = 2500`
-- `Mean = 2500 / 5 = 500`
+1. **Calculate the Mean (Average) of the Baseline**
+   The AI Service looks at your past 5 transactions: `[400, 500, 600, 450, 550]`
+   - Sum = 400 + 500 + 600 + 450 + 550 = 2500
+   - Mean = 2500 / 5 = **500**
 
-**2. Calculate the Standard Deviation (How much you normally fluctuate)**
-The algorithm looks at how far each past transaction is from the Mean:
-- `500 - 500 = 0` (for all 5 transactions)
-Because you always spent exactly 500, your Standard Deviation is `0`. *(Note: To prevent a divide-by-zero crash in Java, our code forces a standard deviation of 0 up to 1.0).*
+2. **Calculate the Standard Deviation (How much you normally fluctuate)**
+   The algorithm measures how far each past transaction deviates from the Mean (500):
+   - Variance = [(-100)² + (0)² + (100)² + (-50)² + (50)²] / 5 = [10000 + 0 + 10000 + 2500 + 2500] / 5 = 5000
+   - Standard Deviation = √5000 ≈ **70.71**
 
-**3. Calculate the Z-Score of the New Transaction (1500)**
-The Z-Score formula is: `(New Amount - Mean) / Standard Deviation`
-- `(1500 - 500) / 1.0`
-- `1000 / 1.0 = 1000`
+3. **Calculate the Z-Score of the New Transaction (1500)**
+   The Z-Score formula is: `(New Amount - Mean) / Standard Deviation`
+   - (1500 - 500) / 70.71
+   - 1000 / 70.71 ≈ **14.14**
 
-**4. The Verdict**
-Our code triggers a fraud alert if the `Z-Score > 3.0` (which means it is 3 standard deviations away from normal). Since your Z-Score is `1000`, the math algorithm screams "Fraud!".
+4. **The Verdict**
+   Our code triggers a fraud alert if the **Z-Score > 3.0** (which means it is 3 standard deviations away from normal).
+   Since your Z-Score is **14.14**, the algorithm flags it as an extreme anomaly and screams "Fraud!".
 
 #### Why exactly compare to 3?
 The number 3 comes from statistics and the **"Empirical Rule" (or 68-95-99.7 rule)** of the Bell Curve:
