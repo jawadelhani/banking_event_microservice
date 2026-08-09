@@ -2,10 +2,7 @@ package com.jawad.bank.simulator.services;
 
 import com.jawad.bank.simulator.clients.AccountClient;
 import com.jawad.bank.simulator.config.SimulatorProperties;
-import com.jawad.bank.simulator.dtos.AccountDto;
-import com.jawad.bank.simulator.dtos.CreateTransactionRequest;
-import com.jawad.bank.simulator.dtos.SimulateTransactionsRequest;
-import com.jawad.bank.simulator.dtos.TransactionDto;
+import com.jawad.bank.simulator.dtos.*;
 import com.jawad.bank.simulator.entities.Transaction;
 import com.jawad.bank.simulator.entities.TransactionType;
 import com.jawad.bank.simulator.mappers.TransactionMapper;
@@ -23,8 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -113,13 +109,19 @@ class TransactionServiceTest {
         request.setAccountIds(List.of(UUID.randomUUID()));
         request.setCount(2);
 
+        AccountDto mockAccount = new AccountDto();
+        mockAccount.setClientId(UUID.randomUUID());
+        when(accountClient.getAccount(any(UUID.class), anyString())).thenReturn(mockAccount);
+        when(accountClient.adjustBalance(any(UUID.class), any(BalanceAdjustmentRequest.class), anyString()))
+                .thenReturn(mockAccount);
+
         when(simulatorProperties.getMinAmount()).thenReturn(BigDecimal.valueOf(10));
         when(simulatorProperties.getMaxAmount()).thenReturn(BigDecimal.valueOf(500));
         when(transactionRepository.save(any(Transaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
         when(transactionMapper.toDto(any(Transaction.class))).thenReturn(new TransactionDto());
 
-        List<TransactionDto> result = transactionService.simulate(request);
+        List<TransactionDto> result = transactionService.simulate(request, "Bearer test-token");
 
         assertEquals(2, result.size());
     }
