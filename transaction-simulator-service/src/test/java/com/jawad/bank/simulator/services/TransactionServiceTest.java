@@ -111,17 +111,27 @@ class TransactionServiceTest {
 
         AccountDto mockAccount = new AccountDto();
         mockAccount.setClientId(UUID.randomUUID());
-        when(accountClient.getAccount(any(UUID.class), anyString())).thenReturn(mockAccount);
-        when(accountClient.adjustBalance(any(UUID.class), any(BalanceAdjustmentRequest.class), anyString()))
-                .thenReturn(mockAccount);
 
-        when(simulatorProperties.getMinAmount()).thenReturn(BigDecimal.valueOf(10));
-        when(simulatorProperties.getMaxAmount()).thenReturn(BigDecimal.valueOf(500));
+        when(accountClient.adjustBalance(
+                any(UUID.class),
+                any(BalanceAdjustmentRequest.class),
+                anyString()
+        )).thenReturn(mockAccount);
+
+        when(simulatorProperties.getMinAmount())
+                .thenReturn(BigDecimal.valueOf(10));
+
+        when(simulatorProperties.getMaxAmount())
+                .thenReturn(BigDecimal.valueOf(500));
+
         when(transactionRepository.save(any(Transaction.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(transactionMapper.toDto(any(Transaction.class))).thenReturn(new TransactionDto());
 
-        List<TransactionDto> result = transactionService.simulate(request, "Bearer test-token");
+        when(transactionMapper.toDto(any(Transaction.class)))
+                .thenReturn(new TransactionDto());
+
+        List<TransactionDto> result =
+                transactionService.simulate(request, "Bearer test-token");
 
         assertEquals(2, result.size());
     }
