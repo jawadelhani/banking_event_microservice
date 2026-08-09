@@ -632,7 +632,51 @@ Authorization: Bearer <ADMIN JWT>
 
 Then check `ai-service` logs for the fraud score breakdown and the published `CardSuggestionEvent` / `FraudAnalysisEvent`.
 
+### How Fraud Scoring (Z-Score) Works
+The AI Service uses the **Z-Score anomaly detection** algorithm to identify suspicious transactions. It learns a client's normal spending habits dynamically.
+
+> **Note:** To ensure statistical precision, the Z-Score is **not calculated** until a user has at least **10 past transactions** in their history. Before this threshold, the system allows the user to establish their baseline.
+
+#### The Math (Operations Example)
+**1. Calculate the Mean (Average) of the Baseline**
+The AI Service looks at your past 5 transactions (assuming the threshold was met): `[500, 500, 500, 500, 500]`
+- `Sum = 500 + 500 + 500 + 500 + 500 = 2500`
+- `Mean = 2500 / 5 = 500`
+
+**2. Calculate the Standard Deviation (How much you normally fluctuate)**
+The algorithm looks at how far each past transaction is from the Mean:
+- `500 - 500 = 0` (for all 5 transactions)
+Because you always spent exactly 500, your Standard Deviation is `0`. *(Note: To prevent a divide-by-zero crash in Java, our code forces a standard deviation of 0 up to 1.0).*
+
+**3. Calculate the Z-Score of the New Transaction (1500)**
+The Z-Score formula is: `(New Amount - Mean) / Standard Deviation`
+- `(1500 - 500) / 1.0`
+- `1000 / 1.0 = 1000`
+
+**4. The Verdict**
+Our code triggers a fraud alert if the `Z-Score > 3.0` (which means it is 3 standard deviations away from normal). Since your Z-Score is `1000`, the math algorithm screams "Fraud!".
+
+#### Why exactly compare to 3?
+The number 3 comes from statistics and the **"Empirical Rule" (or 68-95-99.7 rule)** of the Bell Curve:
+- **68%** of all normal spending falls within 1 standard deviation.
+- **95%** falls within 2 standard deviations.
+- **99.7%** falls within 3 standard deviations.
+
+By setting the limit to `3.0`, mathematics dictates that there is a **99.7% probability** that this transaction is extremely abnormal.
+
+### How to Test Fraud Alerts (For a New or Existing User)
+Since the Z-Score adapts to your test data, if you send many `1500 MAD` transactions, the system learns that `1500 MAD` is normal for you, and it will no longer trigger a fraud alert!
+
+To properly test it:
+1. **Establish a Baseline:** Send a few identical, small transactions (e.g., 5 transactions of `500 MAD`). This establishes a tight baseline mean of 500.
+2. **Trigger the Anomaly:** Send a massive outlier transaction that breaks the baseline. Because you might have polluted your test data by sending large transactions repeatedly earlier, **send a transaction of `1000000` (1 Million) MAD**. This guarantees a Z-Score spike well over 3.0.
+3. **Check the Result:** 
+   - `ai-service` calculates the Z-Score and publishes `FraudAnalysisEvent` to Kafka.
+   - `agency-service` consumes it and saves it as an Urgent Alert for bank agents.
+   - `notification-service` consumes it and immediately emails a **🚨 Fraud Alert** warning to the client's registered email address.
+
 > **Note:** the fraud/card-suggestion decision itself is always rule-based and deterministic — Groq is only used to generate the card-suggestion message and (optionally) a human-readable fraud explanation, never to make the actual verdict. This keeps decisions auditable.
+
 
 ---
 
