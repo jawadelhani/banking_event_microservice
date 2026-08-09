@@ -42,7 +42,7 @@
       <section class="card fade-in">
         <h2>My Accounts</h2>
         <div class="stack">
-          <article class="mini-card" *ngFor="let account of accounts">
+          <article class="mini-card" *ngFor="let account of paginatedAccounts">
             <div>
               <strong>{{ account.accountNumber }}</strong>
               <p>{{ account.accountType }} · {{ account.status }}</p>
@@ -51,14 +51,19 @@
           </article>
           <p class="empty" *ngIf="accounts.length === 0">No accounts yet.</p>
         </div>
+        <div class="pagination-controls" *ngIf="accounts.length > pageSize">
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === 1" (click)="prevPage()">Prev</button>
+          <span class="muted">Page {{ currentPage }} of {{ getTotalPages(accounts.length) }}</span>
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === getTotalPages(accounts.length)" (click)="nextPage(accounts.length)">Next</button>
+        </div>
       </section>
 
       <section class="card fade-in">
         <h2>My Alerts</h2>
         <div class="stack">
-          <article class="mini-card" *ngFor="let alert of alerts">
+          <article class="mini-card" *ngFor="let alert of paginatedAlerts">
             <div>
-              <strong>{{ alert.criticality }} alert</strong>
+              <strong><span class="badge" [class.badge-success]="alert.criticality === 'INFO'" [class.badge-danger]="alert.criticality === 'HIGH' || alert.criticality === 'URGENT'" style="margin-right: 8px;">{{ alert.criticality }}</span> alert</strong>
               <p>{{ formatDate(alert.createdAt) }}</p>
             </div>
             <span class="badge" [class.badge-danger]="alert.criticality === 'HIGH'">
@@ -67,12 +72,17 @@
           </article>
           <p class="empty" *ngIf="alerts.length === 0">No alerts for your account.</p>
         </div>
+        <div class="pagination-controls" *ngIf="alerts.length > pageSize">
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === 1" (click)="prevPage()">Prev</button>
+          <span class="muted">Page {{ currentPage }} of {{ getTotalPages(alerts.length) }}</span>
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === getTotalPages(alerts.length)" (click)="nextPage(alerts.length)">Next</button>
+        </div>
       </section>
 
       <section class="card fade-in">
         <h2>My Notifications</h2>
         <div class="stack">
-          <article class="mini-card" *ngFor="let notification of notifications">
+          <article class="mini-card" *ngFor="let notification of paginatedNotifications">
             <div>
               <strong>{{ notification.channel }}</strong>
               <p>{{ notification.message }}</p>
@@ -80,6 +90,11 @@
             <span class="badge badge-muted">{{ notification.status }}</span>
           </article>
           <p class="empty" *ngIf="notifications.length === 0">No notifications yet.</p>
+        </div>
+        <div class="pagination-controls" *ngIf="notifications.length > pageSize">
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === 1" (click)="prevPage()">Prev</button>
+          <span class="muted">Page {{ currentPage }} of {{ getTotalPages(notifications.length) }}</span>
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === getTotalPages(notifications.length)" (click)="nextPage(notifications.length)">Next</button>
         </div>
       </section>
 
@@ -99,7 +114,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let tx of transactions">
+              <tr *ngFor="let tx of paginatedTransactions">
                 <td class="mono">{{ tx.accountId }}</td>
                 <td><span class="badge" [class.badge-success]="tx.type === 'CREDIT'">{{ tx.type }}</span></td>
                 <td [class.text-success]="tx.amount > 0" [class.text-danger]="tx.amount < 0">{{ formatAmount(tx.amount) }}</td>
@@ -110,6 +125,11 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="pagination-controls" *ngIf="transactions.length > pageSize">
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === 1" (click)="prevPage()">Prev</button>
+          <span class="muted">Page {{ currentPage }} of {{ getTotalPages(transactions.length) }}</span>
+          <button class="btn btn-sm btn-secondary" [disabled]="currentPage === getTotalPages(transactions.length)" (click)="nextPage(transactions.length)">Next</button>
         </div>
       </section>
     </div>

@@ -80,6 +80,46 @@ export class ClientComponent implements OnInit {
       ? new Intl.NumberFormat('fr-MA', { style: 'currency', currency: 'MAD' }).format(value)
       : '—';
   }
+
+  // ===== PAGINATION =====
+  currentPage = 1;
+  pageSize = 5;
+
+  get paginatedAccounts(): Account[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.accounts.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get paginatedAlerts(): AgencyAlert[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.alerts.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get paginatedNotifications(): Notification[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.notifications.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get paginatedTransactions(): Transaction[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.transactions.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  getTotalPages(arrayLength: number): number {
+    return Math.ceil(arrayLength / this.pageSize) || 1;
+  }
+
+  nextPage(arrayLength: number): void {
+    if (this.currentPage < this.getTotalPages(arrayLength)) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage(): void {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
 }
 
 

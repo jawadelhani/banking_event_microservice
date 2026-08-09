@@ -81,7 +81,11 @@ public class AccountService {
     @Transactional
     public Optional<AccountDto> adjustBalance(UUID accountId, BigDecimal delta) {
         return accountRepository.findById(accountId).map(account -> {
-            account.setBalance(account.getBalance().add(delta));
+            BigDecimal newBalance = account.getBalance().add(delta);
+            if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("Insufficient funds: transaction would result in a negative balance");
+            }
+            account.setBalance(newBalance);
             return accountMapper.toDto(accountRepository.save(account));
         });
     }

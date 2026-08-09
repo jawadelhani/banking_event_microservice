@@ -2,13 +2,13 @@ package com.jawad.bank.agency.dtos;
 
 import com.jawad.bank.agency.entities.Criticality;
 import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Getter
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
 public class AgencyAlertDto {

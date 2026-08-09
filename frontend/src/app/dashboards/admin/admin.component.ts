@@ -77,6 +77,7 @@ export class AdminComponent implements OnInit {
 
   selectTab(tab: AdminTab): void {
     this.activeTab = tab;
+    this.currentPage = 1;
   }
 
   loadAll(): void {
@@ -240,5 +241,56 @@ export class AdminComponent implements OnInit {
       { id: 'notifications', label: 'Notifications', count: this.notifications.length },
       { id: 'transactions', label: 'Transactions', count: this.transactions.length }
     ];
+  }
+
+  // ===== PAGINATION =====
+  currentPage = 1;
+  pageSize = 10;
+
+  get paginatedClients(): Client[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.clients.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get paginatedAccounts(): Account[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.accounts.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get paginatedAlerts(): AgencyAlert[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.alerts.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get paginatedNotifications(): Notification[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.notifications.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  get paginatedTransactions(): Transaction[] {
+    const startIndex = (this.currentPage - 1) * this.pageSize;
+    return this.transactions.slice(startIndex, startIndex + this.pageSize);
+  }
+
+  getTotalPages(arrayLength: number): number {
+    return Math.ceil(arrayLength / this.pageSize) || 1;
+  }
+
+  nextPage(arrayLength: number): void {
+    if (this.currentPage < this.getTotalPages(arrayLength)) {
+      this.currentPage++;
+    }
+  }
+
+  prevPage(): void {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
+
+  // ===== HELPER =====
+  getClientName(clientId: string): string {
+    const client = this.clients.find(c => c.id === clientId);
+    return client ? client.fullName : clientId;
   }
 }
