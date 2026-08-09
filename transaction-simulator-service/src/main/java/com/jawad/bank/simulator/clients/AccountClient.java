@@ -22,4 +22,8 @@ public interface AccountClient {
     AccountDto adjustBalance(@PathVariable("id") UUID id,
                              @RequestBody BalanceAdjustmentRequest request,
                              @RequestHeader("Authorization") String authorization);
+
+    @GetMapping("/accounts/{id}")
+    AccountDto getAccount(@PathVariable("id") UUID id,
+                          @RequestHeader("Authorization") String authorization);
 }
