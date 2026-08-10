@@ -227,112 +227,77 @@ pipeline {
         // CD - KUBERNETES MANIFEST REPOSITORY
         // ============================================================
 
-        stage('Checkout Kubernetes Manifests') {
-            steps {
-
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'github-token',
-                        usernameVariable: 'GIT_USER',
-                        passwordVariable: 'GIT_PASSWORD'
-                    )
-                ]) {
-
-                    sh '''
-                        rm -rf banking-k8s-manifests
-
-                        git clone \
-                            --branch main \
-                            https://${GIT_USER}:${GIT_PASSWORD}@github.com/jawadelhani/banking-k8s-manifests.git \
-                            banking-k8s-manifests
-                    '''
-                }
-            }
-        }
+       stage('Checkout Kubernetes Manifests') {
+           steps {
+               checkout([
+                   $class: 'GitSCM',
+                   branches: [[name: '*/main']],
+                   userRemoteConfigs: [[
+                       url: 'https://github.com/jawadelhani/banking-k8s-manifests.git',
+                       credentialsId: 'github-token'
+                   ]],
+                   extensions: [[
+                       $class: 'RelativeTargetDirectory',
+                       relativeTargetDir: 'banking-k8s-manifests'
+                   ]]
+               ])
+           }
+       }
 
 
         stage('Update Kubernetes Manifests (CD)') {
             steps {
+                script {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'github-token',
+                            usernameVariable: 'GIT_USER',
+                            passwordVariable: 'GIT_PASSWORD'
+                        )
+                    ]) {
+                        sh '''
+                            set -e
 
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'github-token',
-                        usernameVariable: 'GIT_USER',
-                        passwordVariable: 'GIT_PASSWORD'
-                    )
-                ]) {
+                            echo "======================================"
+                            echo "Updating Kubernetes Image Tags"
+                            echo "Build: $BUILD_NUMBER"
+                            echo "======================================"
 
-                    sh '''
-                        set -e
+                            cd banking-k8s-manifests
 
-                        echo "======================================"
-                        echo "Updating Kubernetes Image Tags"
-                        echo "Build: $BUILD_NUMBER"
-                        echo "======================================"
+                            for service in $SERVICES; do
+                                echo "Updating $service..."
 
-                        cd banking-k8s-manifests
+                                sed -i "s|image: [^/]*/${service}:.*|image: ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}|g" \
+                                    backend/${service}/deployment.yaml
+                            done
 
-                        # ==========================================
-                        # Backend services
-                        # ==========================================
+                            echo "Updating banking-frontend..."
 
-                        for service in $SERVICES; do
+                            sed -i "s|image: [^/]*/banking-frontend:.*|image: ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}|g" \
+                                frontend/angular-app/deployment.yaml
 
-                            echo "Updating $service..."
+                            echo "Changes:"
+                            git diff
 
-                            sed -i \
-                                "s|image: [^/]*/${service}:.*|image: ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}|g" \
-                                backend/${service}/deployment.yaml
+                            git config user.email "jenkins@banking.local"
+                            git config user.name "Jenkins CI"
 
-                        done
+                            git add .
 
+                            if ! git diff --cached --quiet; then
 
-                        # ==========================================
-                        # Frontend
-                        # ==========================================
+                                git commit -m "chore: update image tags to build ${BUILD_NUMBER} [skip ci]"
 
-                        echo "Updating banking-frontend..."
+                                echo "Pushing changes to GitHub..."
 
-                        sed -i \
-                            "s|image: [^/]*/banking-frontend:.*|image: ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}|g" \
-                            frontend/angular-app/deployment.yaml
+                                git push origin HEAD:main
 
-
-                        # ==========================================
-                        # Show changes
-                        # ==========================================
-
-                        echo ""
-                        echo "Changes:"
-                        git diff
-
-
-                        # ==========================================
-                        # Commit
-                        # ==========================================
-
-                        git config user.email "jenkins@banking.local"
-                        git config user.name "Jenkins CI"
-
-                        git add .
-
-                        if ! git diff --cached --quiet; then
-
-                            git commit \
-                                -m "chore: update image tags to build ${BUILD_NUMBER} [skip ci]"
-
-                            echo "Pushing changes to GitHub..."
-
-                            git push origin HEAD:main
-
-                        else
-
-                            echo "No changes to commit."
-
-                        fi
-
-                        echo "Kubernetes manifests updated successfully."
-                    '''
+                            else
+                                echo "No changes to commit."
+                            fi
+                        '''
+                    }
                 }
             }
         }
