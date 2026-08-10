@@ -198,33 +198,34 @@ pipeline {
                             credentialsId: 'github-token',
                             usernameVariable: 'GIT_USER',
                             passwordVariable: 'GIT_PASSWORD'
-                        ),
-                        string(
-                            credentialsId: 'db-password',
-                            variable: 'DB_PASSWORD'
                         )
                     ]) {
                         sh """
-                            
                             echo 'Updating Image Tags...'
+
                             # Update Backend Services
                             for service in ${SERVICES}; do
-                                sed -i "s|image: jawadelhani/\${service}:.*|image: ${DOCKERHUB_USERNAME}/\${service}:${BUILD_NUMBER}|g" banking-k8s-manifests/backend/\${service}/deployment.yaml
+                                sed -i "s|image: jawadelhani/\\\${service}:.*|image: ${DOCKERHUB_USERNAME}/\\\${service}:${BUILD_NUMBER}|g" \
+                                banking-k8s-manifests/backend/\\\${service}/deployment.yaml
                             done
-                            
+
                             # Update Frontend
-                            sed -i "s|image: jawadelhani/banking-frontend:.*|image: ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}|g" banking-k8s-manifests/frontend/angular-app/deployment.yaml
-                            
+                            sed -i "s|image: jawadelhani/banking-frontend:.*|image: ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}|g" \
+                            banking-k8s-manifests/frontend/angular-app/deployment.yaml
+
                             echo 'Committing Changes...'
+
                             cd banking-k8s-manifests
+
                             git config user.email 'jenkins@banking.local'
                             git config user.name 'Jenkins CI'
+
                             git add .
-                            
-                            # If there are changes, commit them
+
                             if ! git diff-index --quiet HEAD; then
-                                git commit -m 'chore: Update image tags to build ${BUILD_NUMBER} [skip ci]'
-                                # git push https://\${GIT_USER}:\${GIT_PASSWORD}@github.com/jawadelhani/banking-k8s-manifests.git HEAD:main
+                                git commit -m "chore: Update image tags to build ${BUILD_NUMBER} [skip ci]"
+
+                                git push https://${GIT_USER}:${GIT_PASSWORD}@github.com/jawadelhani/banking-k8s-manifests.git HEAD:main
                             else
                                 echo 'No changes to commit.'
                             fi
@@ -233,7 +234,6 @@ pipeline {
                 }
             }
         }
-    }
 
     post {
 
