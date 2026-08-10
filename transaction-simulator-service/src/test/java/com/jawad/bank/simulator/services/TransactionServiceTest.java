@@ -111,12 +111,10 @@ class TransactionServiceTest {
 
         AccountDto mockAccount = new AccountDto();
         mockAccount.setClientId(UUID.randomUUID());
+        mockAccount.setAccountNumber("ACC-TEST-001");
 
-        when(accountClient.adjustBalance(
-                any(UUID.class),
-                any(BalanceAdjustmentRequest.class),
-                anyString()
-        )).thenReturn(mockAccount);
+        when(accountClient.getAccount(any(UUID.class), anyString()))
+                .thenReturn(mockAccount);
 
         when(simulatorProperties.getMinAmount())
                 .thenReturn(BigDecimal.valueOf(10));
