@@ -188,7 +188,7 @@ pipeline {
                 }
             }
         }
-        }
+
 
         stage('Update Kubernetes Manifests (CD)') {
             steps {
