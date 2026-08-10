@@ -16,7 +16,11 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
+        // ============================================================
+        // CI - APPLICATION REPOSITORY
+        // ============================================================
+
+        stage('Checkout Application') {
             steps {
                 checkout scm
             }
@@ -50,8 +54,10 @@ pipeline {
             steps {
                 script {
                     withSonarQubeEnv('SonarQube') {
+
                         for (service in env.SERVICES.split()) {
                             dir(service) {
+
                                 sh """
                                     mvn org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar \
                                     -Dsonar.projectKey=${service} \
@@ -69,7 +75,10 @@ pipeline {
                 script {
 
                     withCredentials([
-                        string(credentialsId: 'nvd-api-key', variable: 'NVD_API_KEY')
+                        string(
+                            credentialsId: 'nvd-api-key',
+                            variable: 'NVD_API_KEY'
+                        )
                     ]) {
 
                         for (service in env.SERVICES.split()) {
@@ -78,14 +87,13 @@ pipeline {
 
                             dir(service) {
 
-                               sh '''
-                                   mvn org.owasp:dependency-check-maven:12.2.2:check \
-                                       -DnvdApiKey=$NVD_API_KEY \
-                                       -DdataDirectory=/var/jenkins_home/owasp-dc-data \
-                                       -Danalyzer.assembly.enabled=false \
-                                       -DnvdApiDelay=6000
-                               '''
-
+                                sh '''
+                                    mvn org.owasp:dependency-check-maven:12.2.2:check \
+                                        -DnvdApiKey=$NVD_API_KEY \
+                                        -DdataDirectory=/var/jenkins_home/owasp-dc-data \
+                                        -Danalyzer.assembly.enabled=false \
+                                        -DnvdApiDelay=6000
+                                '''
                             }
                         }
                     }
@@ -96,7 +104,9 @@ pipeline {
         stage('Package') {
             steps {
                 script {
+
                     for (service in env.SERVICES.split()) {
+
                         dir(service) {
                             sh 'mvn package -DskipTests'
                         }
@@ -108,8 +118,12 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
+
+                    // Backend services
                     for (service in env.SERVICES.split()) {
+
                         dir(service) {
+
                             sh """
                                 docker build --platform linux/amd64 \
                                     -t ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER} \
@@ -118,7 +132,9 @@ pipeline {
                         }
                     }
 
+                    // Frontend
                     dir('frontend') {
+
                         sh """
                             docker build --platform linux/amd64 \
                                 -t ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER} \
@@ -139,18 +155,33 @@ pipeline {
 
                         sh """
                             trivy image \
-                              --cache-dir /var/jenkins_home/trivy-cache \
-                              --timeout 20m \
-                              --skip-version-check \
-                              --scanners vuln \
-                              --severity HIGH,CRITICAL \
-                              --exit-code 0 \
-                              --format template \
-                              --template "@/var/jenkins_home/trivy-template/html.tpl" \
-                              -o trivy-reports/${service}.html \
-                              ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}
+                                --cache-dir /var/jenkins_home/trivy-cache \
+                                --timeout 20m \
+                                --skip-version-check \
+                                --scanners vuln \
+                                --severity HIGH,CRITICAL \
+                                --exit-code 0 \
+                                --format template \
+                                --template "@/var/jenkins_home/trivy-template/html.tpl" \
+                                -o trivy-reports/${service}.html \
+                                ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}
                         """
                     }
+
+                    // Scan frontend too
+                    sh """
+                        trivy image \
+                            --cache-dir /var/jenkins_home/trivy-cache \
+                            --timeout 20m \
+                            --skip-version-check \
+                            --scanners vuln \
+                            --severity HIGH,CRITICAL \
+                            --exit-code 0 \
+                            --format template \
+                            --template "@/var/jenkins_home/trivy-template/html.tpl" \
+                            -o trivy-reports/banking-frontend.html \
+                            ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}
+                    """
                 }
             }
         }
@@ -173,7 +204,9 @@ pipeline {
                     '''
 
                     script {
+
                         for (service in env.SERVICES.split()) {
+
                             sh """
                                 docker push ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}
                             """
@@ -190,54 +223,130 @@ pipeline {
         }
 
 
+        // ============================================================
+        // CD - KUBERNETES MANIFEST REPOSITORY
+        // ============================================================
+
+        stage('Checkout Kubernetes Manifests') {
+            steps {
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'github-token',
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_PASSWORD'
+                    )
+                ]) {
+
+                    sh '''
+                        rm -rf banking-k8s-manifests
+
+                        git clone \
+                            --branch main \
+                            https://${GIT_USER}:${GIT_PASSWORD}@github.com/jawadelhani/banking-k8s-manifests.git \
+                            banking-k8s-manifests
+                    '''
+                }
+            }
+        }
+
+
         stage('Update Kubernetes Manifests (CD)') {
             steps {
-                script {
-                    withCredentials([
-                        usernamePassword(
-                            credentialsId: 'github-token',
-                            usernameVariable: 'GIT_USER',
-                            passwordVariable: 'GIT_PASSWORD'
-                        )
-                    ]) {
-                        sh """
-                            echo 'Updating Image Tags...'
 
-                            # Update Backend Services
-                            for service in ${SERVICES}; do
-                                sed -i "s|image: jawadelhani/\\\${service}:.*|image: ${DOCKERHUB_USERNAME}/\\\${service}:${BUILD_NUMBER}|g" \
-                                banking-k8s-manifests/backend/\\\${service}/deployment.yaml
-                            done
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'github-token',
+                        usernameVariable: 'GIT_USER',
+                        passwordVariable: 'GIT_PASSWORD'
+                    )
+                ]) {
 
-                            # Update Frontend
-                            sed -i "s|image: jawadelhani/banking-frontend:.*|image: ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}|g" \
-                            banking-k8s-manifests/frontend/angular-app/deployment.yaml
+                    sh '''
+                        set -e
 
-                            echo 'Committing Changes...'
+                        echo "======================================"
+                        echo "Updating Kubernetes Image Tags"
+                        echo "Build: $BUILD_NUMBER"
+                        echo "======================================"
 
-                            cd banking-k8s-manifests
+                        cd banking-k8s-manifests
 
-                            git config user.email 'jenkins@banking.local'
-                            git config user.name 'Jenkins CI'
+                        # ==========================================
+                        # Backend services
+                        # ==========================================
 
-                            git add .
+                        for service in $SERVICES; do
 
-                            if ! git diff-index --quiet HEAD; then
-                                git commit -m "chore: Update image tags to build ${BUILD_NUMBER} [skip ci]"
+                            echo "Updating $service..."
 
-                                git push https://${GIT_USER}:${GIT_PASSWORD}@github.com/jawadelhani/banking-k8s-manifests.git HEAD:main
-                            else
-                                echo 'No changes to commit.'
-                            fi
-                        """
-                    }
+                            sed -i \
+                                "s|image: [^/]*/${service}:.*|image: ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}|g" \
+                                backend/${service}/deployment.yaml
+
+                        done
+
+
+                        # ==========================================
+                        # Frontend
+                        # ==========================================
+
+                        echo "Updating banking-frontend..."
+
+                        sed -i \
+                            "s|image: [^/]*/banking-frontend:.*|image: ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}|g" \
+                            frontend/angular-app/deployment.yaml
+
+
+                        # ==========================================
+                        # Show changes
+                        # ==========================================
+
+                        echo ""
+                        echo "Changes:"
+                        git diff
+
+
+                        # ==========================================
+                        # Commit
+                        # ==========================================
+
+                        git config user.email "jenkins@banking.local"
+                        git config user.name "Jenkins CI"
+
+                        git add .
+
+                        if ! git diff --cached --quiet; then
+
+                            git commit \
+                                -m "chore: update image tags to build ${BUILD_NUMBER} [skip ci]"
+
+                            echo "Pushing changes to GitHub..."
+
+                            git push origin HEAD:main
+
+                        else
+
+                            echo "No changes to commit."
+
+                        fi
+
+                        echo "Kubernetes manifests updated successfully."
+                    '''
                 }
             }
         }
     }
+
+
+    // ================================================================
+    // POST ACTIONS
+    // ================================================================
+
     post {
 
         always {
+
             publishHTML([
                 allowMissing: true,
                 alwaysLinkToLastBuild: true,
@@ -310,6 +419,15 @@ pipeline {
                 reportName: 'Trivy - Transaction Simulator'
             ])
 
+            publishHTML([
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: 'trivy-reports',
+                reportFiles: 'banking-frontend.html',
+                reportName: 'Trivy - Frontend'
+            ])
+
             archiveArtifacts(
                 artifacts: '**/*.html',
                 allowEmptyArchive: true
@@ -319,15 +437,17 @@ pipeline {
         }
 
         success {
+
             echo "======================================"
-            echo "CI Pipeline completed successfully!"
+            echo "CI/CD Pipeline completed successfully!"
             echo "Build Number: ${BUILD_NUMBER}"
             echo "======================================"
         }
 
         failure {
+
             echo "======================================"
-            echo "CI Pipeline failed!"
+            echo "CI/CD Pipeline failed!"
             echo "======================================"
         }
     }
