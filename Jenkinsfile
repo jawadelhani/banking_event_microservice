@@ -109,22 +109,20 @@ pipeline {
             steps {
                 script {
                     for (service in env.SERVICES.split()) {
-
                         dir(service) {
                             sh """
-                                docker build \
-                                -t ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER} \
-                                -t ${DOCKERHUB_USERNAME}/${service}:latest .
+                                docker build --platform linux/amd64 \
+                                    -t ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER} \
+                                    -t ${DOCKERHUB_USERNAME}/${service}:latest .
                             """
                         }
-
                     }
 
                     dir('frontend') {
                         sh """
-                            docker build \
-                            -t ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER} \
-                            -t ${DOCKERHUB_USERNAME}/banking-frontend:latest .
+                            docker build --platform linux/amd64 \
+                                -t ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER} \
+                                -t ${DOCKERHUB_USERNAME}/banking-frontend:latest .
                         """
                     }
                 }
@@ -169,27 +167,27 @@ pipeline {
                 ]) {
 
                     sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USER" --password-stdin
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "$DOCKER_USER" \
+                            --password-stdin
                     '''
 
                     script {
                         for (service in env.SERVICES.split()) {
-
                             sh """
                                 docker push ${DOCKERHUB_USERNAME}/${service}:${BUILD_NUMBER}
-                                docker push ${DOCKERHUB_USERNAME}/${service}:latest
                             """
                         }
-                        
+
                         sh """
                             docker push ${DOCKERHUB_USERNAME}/banking-frontend:${BUILD_NUMBER}
-                            docker push ${DOCKERHUB_USERNAME}/banking-frontend:latest
                         """
                     }
 
                     sh 'docker logout'
                 }
             }
+        }
         }
 
         stage('Update Kubernetes Manifests (CD)') {
