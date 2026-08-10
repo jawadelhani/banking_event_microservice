@@ -234,7 +234,7 @@ pipeline {
                 }
             }
         }
-
+    }
     post {
 
         always {
